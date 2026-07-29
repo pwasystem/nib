@@ -50,6 +50,13 @@ class TestServerNIB(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.json()["emotion_enabled"])
 
+    def test_kill_and_rebirth(self):
+        response = self.client.post("/api/kill-and-rebirth")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["status"], "success")
+        self.assertIn("NIB (Neuro-Informatik Brain)", data["intro"])
+
     @patch("requests.get")
     def test_get_ollama_models(self, mock_get):
         mock_resp = MagicMock()

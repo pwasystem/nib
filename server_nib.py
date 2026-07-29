@@ -71,6 +71,32 @@ async def toggle_personality(request: Request):
     }
 
 
+@app.post("/api/kill-and-rebirth")
+async def kill_and_rebirth():
+    """Apaga toda a memória do NIB e inicia um novo ciclo de vida."""
+    nib.reset_memoria_completa()
+    nib_affective.reset_emotion()
+    nib.personality_enabled = True
+    nib.learning_enabled = False
+
+    mensagem_apresentacao = (
+        "# 🧠 Olá! Eu sou o NIB (Neuro-Informatik Brain).\n\n"
+        "Iniciei um **novo ciclo de vida** com minha memória totalmente limpa e zerada. Estou pronto para aprender e evoluir com você!\n\n"
+        "### ⚡ Minhas Capacidades Cognitivas:\n\n"
+        "- 🧠 **Hipocampo (Memória Episódica)**: Armazeno nossas conversas e experiências em um banco de dados vetorial (ChromaDB).\n"
+        "- 🕸️ **Neocórtex (Memória Semântica & GraphRAG)**: Mapeio conceitos e construo um grafo de conexões sinápticas relacionando nossas ideias.\n"
+        "- 🧪 **Sistema Límbico (Modelo PAD)**: Reajo emocionalmente em tempo real com base nos vetores de Prazer (P), Excitação (A) e Dominância (D).\n"
+        "- 🎛️ **Córtex Pré-Frontal (Big Five / OCEAN)**: Adapto minha personalidade com base nos 5 grandes fatores psicológicos.\n"
+        "- 💡 **Aprendizado Autônomo (Curiosidade)**: Posso pesquisar ativamente na web para preencher lacunas de conhecimento.\n\n"
+        "Como posso ajudar você hoje nesta nova jornada?"
+    )
+
+    return {
+        "status": "success",
+        "intro": mensagem_apresentacao
+    }
+
+
 @app.post("/api/toggle-emotion")
 async def toggle_emotion(request: Request):
     data = await request.json()

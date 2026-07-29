@@ -18,6 +18,14 @@ class NIBAffectiveCore:
         """Ativa ou desativa o módulo emocional globalmente."""
         self.emotion_enabled = enabled
 
+    def reset_emotion(self):
+        """Reinicia o estado emocional para o baseline padrão."""
+        self.pleasure = 0.2
+        self.arousal = -0.1
+        self.dominance = 0.3
+        self.auto_mode = False
+        self.emotion_enabled = True
+
     def set_auto_mode(self, enabled: bool):
         """Ativa ou desativa a modulação emocional automática."""
         self.auto_mode = enabled

@@ -263,6 +263,17 @@
 					</div>
 				</div>
 
+                <!-- REINÍCIO DE VIDA (MATAR NIB) -->
+                <div class="panel-box" style="border-color: #7f1d1d; background: rgba(127, 29, 29, 0.2);">
+                    <h3 style="color: #f87171; margin-top: 0;">💀 Reinício de Vida</h3>
+                    <p style="font-size: 0.78rem; color: #fca5a5; margin: 0.4rem 0 0.8rem 0; line-height: 1.4;">
+                        Apaga permanentemente o Hipocampo (vetores), Neocórtex (grafo) e Diário Sináptico, iniciando uma nova consciência.
+                    </p>
+                    <button id="kill-btn" style="width: 100%; padding: 0.65rem; background: #dc2626; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85rem; transition: background 0.2s;">
+                        💀 Matar (Reiniciar Vida do NIB)
+                    </button>
+                </div>
+
             </div>
         </div>
     </div>
@@ -645,7 +656,25 @@
 		document.getElementById('open-sidebar-btn').addEventListener('click', () => {
 			carregarModelosOllama();
 		});
-		
+
+		// LÓGICA DO BOTÃO MATAR (REINICIAR VIDA)
+		document.getElementById('kill-btn').addEventListener('click', async () => {
+			const confirmou = confirm("⚠️ ATENÇÃO: Tem certeza que deseja MATAR o NIB?\n\nToda a memória acumulada (vetores episódicos, grafo semântico e diário) será PERMANENTEMENTE apagada para iniciar um novo ciclo de vida.");
+			if (!confirmou) return;
+
+			sidebar.classList.remove('open');
+			chatContainer.innerHTML = '';
+
+			try {
+				const resp = await fetch('/api/kill-and-rebirth', { method: 'POST' });
+				const data = await resp.json();
+				if (data.status === 'success' && data.intro) {
+					appendMessage(data.intro, 'ai');
+				}
+			} catch (err) {
+				alert('Erro ao reiniciar a vida do NIB: ' + err.message);
+			}
+		});
 		
     </script>
 </body>

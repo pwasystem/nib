@@ -27,6 +27,30 @@ class NeuroInformatikBrain:
         self.ollama_url = config.OLLAMA_URL
         self.model_name = config.OLLAMA_MODEL
 
+    def reset_memoria_completa(self):
+        """
+        Apaga totalmente a memória episódica (Hipocampo/ChromaDB), 
+        o grafo semântico (Neocórtex) e o diário sináptico (WAL).
+        """
+        try:
+            self.chroma_client.delete_collection(name="episodic_memory")
+        except Exception:
+            pass
+        self.hipocampo = self.chroma_client.get_or_create_collection(name="episodic_memory")
+
+        self.neocortex = nx.DiGraph()
+        self._salvar_neocortex()
+
+        try:
+            with open(self.wal_path, "w", encoding="utf-8") as f:
+                f.write("")
+        except Exception:
+            pass
+
+        print("\n" + "=" * 60)
+        print("[NIB - REINICIO DE VIDA] Memoria zerada! Hipocampo, Neocortex e Diario limpos.")
+        print("=" * 60 + "\n")
+
     # --------------------------------------------------
     # NEOCÓRTEX (Grafo de Conexões)
     # --------------------------------------------------
