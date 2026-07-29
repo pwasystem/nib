@@ -11,9 +11,16 @@ HIPPOCAMPUS_DIR = os.path.join(STORAGE_DIR, "hippocampus")
 NEOCORTEX_FILE = os.path.join(STORAGE_DIR, "neocortex_graph.json")
 SYNAPTIC_JOURNAL = os.path.join(STORAGE_DIR, "synaptic_journal.jsonl")
 
+# Configurações dos Modos de Memória (Humana vs Perfeita)
+DEFAULT_MEMORY_MODE = "human"  # "human" ou "perfect"
+HUMAN_STORAGE_DIR = os.path.join(STORAGE_DIR, "memoria_humana")
+PERFECT_STORAGE_DIR = os.path.join(BASE_DIR, "memoria_perfeita_db")
+
 # Garantia de criação do diretório físico
 os.makedirs(STORAGE_DIR, exist_ok=True)
 os.makedirs(HIPPOCAMPUS_DIR, exist_ok=True)
+os.makedirs(HUMAN_STORAGE_DIR, exist_ok=True)
+os.makedirs(PERFECT_STORAGE_DIR, exist_ok=True)
 
 # ==========================================
 # CONFIGURAÇÕES DO OLLAMA (MODELO LOCAL)

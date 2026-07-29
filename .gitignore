@@ -9,6 +9,8 @@ __pycache__/
 
 # NIB Local Storage & Vectors
 nib_storage/
+memoria_hipocampo/
+memoria_perfeita_db/
 
 # Environment / IDE
 .venv/

@@ -3,14 +3,14 @@ import json
 import requests
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
 
 import config
+import logger_nib as logger
 from nib_brain import NeuroInformatikBrain
 from nib_affective import NIBAffectiveCore
 from curiosity_core import CuriosityCore
 from personality_factory import PersonalityFactory
-
-from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="NIB - Neuro-Informatik Brain")
 
@@ -44,6 +44,31 @@ def get_index():
         return f.read()
 
 
+@app.get("/api/memory-mode")
+async def get_memory_mode():
+    """Retorna o modo de memória ativo no NIB."""
+    return {"status": "success", "mode": nib.memory_mode}
+
+
+@app.post("/api/set-memory-mode")
+async def set_memory_mode(request: Request):
+    """Altera o modo de memória entre 'human' e 'perfect'."""
+    data = await request.json()
+    novo_modo = data.get("mode", "human")
+    modo_atual = nib.set_memory_mode(novo_modo)
+    return {"status": "success", "mode": modo_atual}
+
+
+@app.post("/api/prune-memory")
+async def prune_memory():
+    """Aciona manualmente a poda sináptica no Modo Humano."""
+    if nib.memory_mode != "human":
+        return {"status": "error", "message": "A poda sináptica só é aplicável no Modo Humano."}
+    
+    nib.aplicar_esquecimento_hebbiano(limiar_corte=0.15)
+    return {"status": "success", "message": "Poda sináptica executada com sucesso!"}
+
+
 @app.post("/api/toggle-learning")
 async def toggle_learning(request: Request):
     data = await request.json()
@@ -51,7 +76,6 @@ async def toggle_learning(request: Request):
     
     descoberta_inicial = None
     if nib.learning_enabled:
-        # Dispara o ciclo de curiosidade ao ativar o chaveador
         descoberta_inicial = curiosity.investigar_lacunas()
         
     return {
@@ -83,11 +107,12 @@ async def kill_and_rebirth():
         "# 🧠 Olá! Eu sou o NIB (Neuro-Informatik Brain).\n\n"
         "Iniciei um **novo ciclo de vida** com minha memória totalmente limpa e zerada. Estou pronto para aprender e evoluir com você!\n\n"
         "### ⚡ Minhas Capacidades Cognitivas:\n\n"
-        "- 🧠 **Hipocampo (Memória Episódica)**: Armazeno nossas conversas e experiências em um banco de dados vetorial (ChromaDB).\n"
-        "- 🕸️ **Neocórtex (Memória Semântica & GraphRAG)**: Mapeio conceitos e construo um grafo de conexões sinápticas relacionando nossas ideias.\n"
-        "- 🧪 **Sistema Límbico (Modelo PAD)**: Reajo emocionalmente em tempo real com base nos vetores de Prazer (P), Excitação (A) e Dominância (D).\n"
-        "- 🎛️ **Córtex Pré-Frontal (Big Five / OCEAN)**: Adapto minha personalidade com base nos 5 grandes fatores psicológicos.\n"
-        "- 💡 **Aprendizado Autônomo (Curiosidade)**: Posso pesquisar ativamente na web para preencher lacunas de conhecimento.\n\n"
+        f"- 🧠 **Modo de Memória Atual**: **{nib.memory_mode.upper()}**\n"
+        "- 🧠 **Hipocampo (Memória Episódica)**: Armazeno nossas conversas em banco vetorial (ChromaDB).\n"
+        "- 🕸️ **Neocórtex (Memória Semântica & GraphRAG)**: Mapeio conceitos e conexões sinápticas.\n"
+        "- 🧪 **Sistema Límbico (Modelo PAD)**: Reajo emocionalmente em tempo real.\n"
+        "- 🎛️ **Córtex Pré-Frontal (Big Five / OCEAN)**: Adapto minha personalidade.\n"
+        "- 💡 **Aprendizado Autônomo & Pesquisa Acadêmica**: Pesquiso fontes acadêmicas/web quando necessário.\n\n"
         "Como posso ajudar você hoje nesta nova jornada?"
     )
 
@@ -178,17 +203,15 @@ async def set_ollama_model(request: Request):
 @app.get("/api/chat")
 async def chat_stream(prompt: str):
     def generate():
+        logger.log_nib("CHAT API", f"Nova interação recebida | Modo Memória: {nib.memory_mode.upper()}", logger.Colors.BRIGHT_MAGENTA)
         
-        # Se o modo automático estiver ligado e o módulo emocional ativo, calcula a reação emocional
         if nib_affective.auto_mode and nib_affective.emotion_enabled:
             nib_affective.reajustar_emocao_automatica(prompt)
             
-        # Se o aprendizado autônomo estiver ligado, tenta buscar lacunas antes da resposta
         descoberta_autonoma = None
         if nib.learning_enabled:
             descoberta_autonoma = curiosity.investigar_lacunas()
 
-        # Resgata o contexto do Hipocampo e Neocórtex
         memoria_contexto = nib.resgatar_memoria_relevante(prompt)
         
         instrucao_personalidade = nib.active_personality.build_system_instruction() if nib.personality_enabled else "Sua personalidade está desativada: responda de maneira neutra, clara e objetiva sem traços de personalidade marcantes."
@@ -203,7 +226,7 @@ async def chat_stream(prompt: str):
             f"IMPORTANTE: NUNCA responda em formato JSON bruto e NUNCA envolva sua mensagem em chaves JSON como {{'resposta': ...}} ou estruturas de objeto."
         )
 
-        prompt_final = f"Contexto de Memória NIB:\n{memoria_contexto}\n\nUsuário: {prompt}\nNIB:"
+        prompt_final = f"Contexto de Memória NIB ({nib.memory_mode.upper()}):\n{memoria_contexto}\n\nUsuário: {prompt}\nNIB:"
 
         resposta_completa = ""
         try:
@@ -231,11 +254,9 @@ async def chat_stream(prompt: str):
             yield "data: [DONE]\n\n"
             return
 
-        # Salva a conversa na memória perpétua
         if resposta_completa.strip():
             nib.memorizar_experiencia(f"Usuário: '{prompt}' | NIB: '{resposta_completa}'")
         
-        # Notifica se o módulo de curiosidade assimilou algo novo
         if descoberta_autonoma:
             evento_curiosidade = json.dumps({
                 "curiosidade": True,
@@ -251,4 +272,5 @@ async def chat_stream(prompt: str):
 
 if __name__ == "__main__":
     import uvicorn
+    logger.log_success(f"Iniciando servidor FastAPI NIB em http://{config.SERVER_HOST}:{config.SERVER_PORT}")
     uvicorn.run(app, host=config.SERVER_HOST, port=config.SERVER_PORT)

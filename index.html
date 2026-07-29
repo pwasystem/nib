@@ -179,6 +179,26 @@
 						</select>
 					</div>
 				</div>
+
+				<!-- ARQUITETURA DE MEMÓRIA (HUMANA vs PERFEITA) -->
+				<div class="panel-box">
+					<h3><span>🧠 Modo de Memória</span></h3>
+					<div style="margin-top: 0.5rem;">
+						<label style="font-size: 0.8rem; color: #cbd5e1; display: block; margin-bottom: 0.4rem;">
+							Comportamento de Memória:
+						</label>
+						<select id="memory-mode-select" style="width: 100%; padding: 0.5rem; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 6px; outline: none; cursor: pointer;">
+							<option value="human">🧠 Memória Humana (Reforço & Decaimento)</option>
+							<option value="perfect">💎 Memória Perfeita (WAL + GraphRAG Perpétuo)</option>
+						</select>
+						<small id="memory-mode-desc" style="font-size: 0.75rem; color: #38bdf8; display: block; margin-top: 0.4rem; line-height: 1.3;">
+							Carregando estado...
+						</small>
+						<button id="prune-memory-btn" style="margin-top: 0.6rem; padding: 0.45rem; background: #ea580c; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.8rem; width: 100%; transition: background 0.2s;">
+							🍂 Executar Poda Sináptica (Esquecimento)
+						</button>
+					</div>
+				</div>
                 
                 <!-- APRENDIZADO AUTÔNOMO (INICIA OFF) -->
                 <div class="panel-box">
@@ -652,10 +672,62 @@
 			}
 		});
 
-		// Carrega a lista de modelos ao abrir o menu lateral ⚙️
+		// LÓGICA DE GERENCIAMENTO DE MODO DE MEMÓRIA (HUMANA vs PERFEITA)
+		const memoryModeSelect = document.getElementById('memory-mode-select');
+		const memoryModeDesc = document.getElementById('memory-mode-desc');
+		const pruneMemoryBtn = document.getElementById('prune-memory-btn');
+
+		function atualizarDescricaoMemoria(modo) {
+			if (modo === 'human') {
+				memoryModeDesc.textContent = "🧠 Mente Humana: reforço sináptico por uso, poda hebbiana (Ebbinghaus) e busca acadêmica se faltar memória.";
+				pruneMemoryBtn.style.display = "block";
+			} else {
+				memoryModeDesc.textContent = "💎 Memória Perfeita: gravação perpétua no WAL + ChromaDB + GraphRAG com busca acadêmica/web ilimitada.";
+				pruneMemoryBtn.style.display = "none";
+			}
+		}
+
+		async function carregarModoMemoria() {
+			try {
+				const resp = await fetch('/api/memory-mode');
+				const data = await resp.json();
+				if (data.status === 'success') {
+					memoryModeSelect.value = data.mode;
+					atualizarDescricaoMemoria(data.mode);
+				}
+			} catch (err) {}
+		}
+
+		memoryModeSelect.addEventListener('change', async (e) => {
+			const modoSelecionado = e.target.value;
+			const resp = await fetch('/api/set-memory-mode', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ mode: modoSelecionado })
+			});
+			const data = await resp.json();
+			if (data.status === 'success') {
+				atualizarDescricaoMemoria(data.mode);
+				alert(`✓ Modo de memória alterado para: ${data.mode === 'human' ? 'Memória Humana' : 'Memória Perfeita'}`);
+			}
+		});
+
+		pruneMemoryBtn.addEventListener('click', async () => {
+			const resp = await fetch('/api/prune-memory', { method: 'POST' });
+			const data = await resp.json();
+			if (data.status === 'success') {
+				alert("🍂 Poda sináptica executada! Memórias com baixa retenção caducaram.");
+			} else {
+				alert("⚠️ " + (data.message || "Erro ao executar poda sináptica."));
+			}
+		});
+
+		// Carrega a lista de modelos e modo de memória ao abrir o menu lateral ⚙️
 		document.getElementById('open-sidebar-btn').addEventListener('click', () => {
 			carregarModelosOllama();
+			carregarModoMemoria();
 		});
+		carregarModoMemoria();
 
 		// LÓGICA DO BOTÃO MATAR (REINICIAR VIDA)
 		document.getElementById('kill-btn').addEventListener('click', async () => {
