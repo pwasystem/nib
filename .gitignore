@@ -1,0 +1,19 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Pytest / Cache
+.pytest_cache/
+.coverage
+
+# NIB Local Storage & Vectors
+nib_storage/
+
+# Environment / IDE
+.venv/
+env/
+venv/
+.vscode/
+.idea/
+*.log

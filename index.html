@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NIB - Neuro-Informatik Brain</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --sidebar-bg: #111827;
+            --user-msg: #2563eb;
+            --ai-msg: #334155;
+            --text-color: #f8fafc;
+            --accent-color: #38bdf8;
+            --border-color: #334155;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0; padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex; flex-direction: column;
+            height: 100vh; overflow: hidden;
+        }
+
+        header {
+            background-color: var(--card-bg);
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex; justify-content: space-between; align-items: center;
+            z-index: 10;
+        }
+
+        header h1 {
+            margin: 0; font-size: 1.2rem; color: var(--accent-color);
+            display: flex; align-items: center; gap: 0.5rem;
+        }
+
+        .settings-btn {
+            background: transparent; border: none; color: var(--text-color);
+            font-size: 1.4rem; cursor: pointer; padding: 0.2rem 0.5rem;
+            border-radius: 6px; transition: background 0.2s;
+        }
+        .settings-btn:hover { background: var(--border-color); }
+
+        #main-wrapper {
+            display: flex; flex: 1; position: relative; overflow: hidden;
+        }
+
+        #chat-container {
+            flex: 1; overflow-y: auto; padding: 1.5rem;
+            display: flex; flex-direction: column; gap: 1.2rem;
+        }
+
+        .message {
+            max-width: 80%; padding: 1rem 1.2rem; border-radius: 12px;
+            line-height: 1.6; word-wrap: break-word;
+        }
+        .message.user {
+            align-self: flex-end; background-color: var(--user-msg); color: white;
+            border-bottom-right-radius: 2px;
+        }
+        .message.ai {
+            align-self: flex-start; background-color: var(--ai-msg); color: var(--text-color);
+            border-bottom-left-radius: 2px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+        }
+        .message.ai pre {
+            background-color: #0f172a; padding: 0.8rem; border-radius: 8px; overflow-x: auto;
+        }
+        .message.ai table {
+            width: 100%; border-collapse: collapse; margin: 0.8rem 0; font-size: 0.9rem;
+            border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color);
+        }
+        .message.ai th {
+            background-color: #0f172a; color: var(--accent-color); padding: 0.6rem 0.8rem;
+            text-align: left; border-bottom: 1px solid var(--border-color);
+        }
+        .message.ai td {
+            padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--border-color);
+        }
+        .message.ai tr:nth-child(even) {
+            background-color: rgba(255, 255, 255, 0.03);
+        }
+        .json-card {
+            background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-color);
+            border-radius: 8px; padding: 0.8rem 1rem; margin: 0.6rem 0;
+        }
+        .json-card-item { margin-bottom: 0.5rem; }
+        .json-card-item:last-child { margin-bottom: 0; }
+        .json-key { color: var(--accent-color); font-weight: 600; font-size: 0.85rem; }
+
+        #input-container {
+            padding: 1rem 1.5rem; background-color: var(--card-bg);
+            border-top: 1px solid var(--border-color); display: flex; gap: 1rem;
+        }
+
+        textarea {
+            flex: 1; background-color: var(--bg-color); color: var(--text-color);
+            border: 1px solid var(--border-color); border-radius: 8px;
+            padding: 0.75rem 1rem; font-size: 1rem; resize: none; height: 48px; outline: none;
+        }
+        textarea:focus { border-color: var(--accent-color); }
+
+        button.send-btn {
+            background-color: var(--accent-color); color: #0f172a;
+            font-weight: bold; border: none; border-radius: 8px; padding: 0 1.5rem; cursor: pointer;
+        }
+
+        /* SIDEBAR EXTENSÍVEL */
+        #sidebar {
+            position: absolute; top: 0; right: -380px;
+            width: 380px; height: 100%;
+            background-color: var(--sidebar-bg); border-left: 1px solid var(--border-color);
+            box-shadow: -4px 0 15px rgba(0, 0, 0, 0.5);
+            transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 20; display: flex; flex-direction: column;
+        }
+        #sidebar.open { right: 0; }
+
+        .sidebar-header {
+            padding: 1.2rem; border-bottom: 1px solid var(--border-color);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .sidebar-header h2 { margin: 0; font-size: 1.1rem; color: var(--accent-color); }
+        .close-sidebar-btn { background: transparent; border: none; color: #94a3b8; font-size: 1.2rem; cursor: pointer; }
+
+        .sidebar-content {
+            padding: 1.2rem; overflow-y: auto; display: flex; flex-direction: column; gap: 1.5rem; flex: 1;
+        }
+
+        .panel-box {
+            background: var(--card-bg); padding: 1rem; border-radius: 10px; border: 1px solid var(--border-color);
+        }
+        .panel-box h3 { margin-top: 0; font-size: 0.95rem; color: #38bdf8; display: flex; justify-content: space-between; }
+
+        .slider-group { display: flex; flex-direction: column; gap: 0.8rem; margin-top: 0.8rem; }
+        .slider-group label { font-size: 0.8rem; display: flex; justify-content: space-between; color: #cbd5e1; }
+        input[type="range"] { width: 100%; accent-color: var(--accent-color); cursor: pointer; }
+
+        .btn-preset {
+            flex: 1; padding: 0.4rem; border: none; border-radius: 4px;
+            color: white; cursor: pointer; font-size: 0.75rem; font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>🧠 NIB (Neuro-Informatik Brain)</h1>
+        <button class="settings-btn" id="open-sidebar-btn" title="Configurações Límbicas e Personalidade">⚙️</button>
+    </header>
+
+    <div id="main-wrapper">
+        <div id="chat-container"></div>
+
+        <div id="sidebar">
+            <div class="sidebar-header">
+                <h2>⚙️ Parâmetros do NIB</h2>
+                <button class="close-sidebar-btn" id="close-sidebar-btn">✕</button>
+            </div>
+
+            <div class="sidebar-content">
+				
+				
+				<!-- SELEÇÃO DO MODELO -->
+				<div class="panel-box">
+					<h3><span>🤖 Modelo do Ollama</span></h3>
+					<div style="margin-top: 0.5rem;">
+						<label style="font-size: 0.8rem; color: #cbd5e1; display: block; margin-bottom: 0.4rem;">
+							Modelo SLM/LLM Ativo:
+						</label>
+						<select id="ollama-model-select" style="width: 100%; padding: 0.5rem; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 6px; outline: none; cursor: pointer;">
+							<option value="">Carregando modelos...</option>
+						</select>
+					</div>
+				</div>
+                
+                <!-- APRENDIZADO AUTÔNOMO (INICIA OFF) -->
+                <div class="panel-box">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 0.9rem; font-weight: bold;">Aprendizado Autônomo:</span>
+                        <input type="checkbox" id="learning-toggle" style="width: 18px; height: 18px; cursor: pointer;">
+                    </div>
+                    <small id="learning-status" style="font-size: 0.75rem; color: #94a3b8; display: block; margin-top: 0.3rem;">
+                        Desativado (Modo Passivo)
+                    </small>
+                </div>
+
+                <!-- PERSONALIDADE (OCEAN) -->
+                <div class="panel-box">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-color);">
+                        <span style="font-size: 0.85rem; font-weight: bold;">Módulo de Personalidade:</span>
+                        <input type="checkbox" id="personality-toggle" checked style="width: 18px; height: 18px; cursor: pointer;">
+                    </div>
+                    <h3>🎛️ Personalidade (Big Five)</h3>
+                    <div class="slider-group" id="personality-controls">
+                        <div>
+                            <label><span>Abertura (O):</span><b id="val-o">80%</b></label>
+                            <input type="range" id="slider-o" min="0" max="100" value="80">
+                        </div>
+                        <div>
+                            <label><span>Conscienciosidade (C):</span><b id="val-c">90%</b></label>
+                            <input type="range" id="slider-c" min="0" max="100" value="90">
+                        </div>
+                        <div>
+                            <label><span>Extroversão (E):</span><b id="val-e">40%</b></label>
+                            <input type="range" id="slider-e" min="0" max="100" value="40">
+                        </div>
+                        <div>
+                            <label><span>Amabilidade (A):</span><b id="val-a">70%</b></label>
+                            <input type="range" id="slider-a" min="0" max="100" value="70">
+                        </div>
+                        <div>
+                            <label><span>Neuroticismo (N):</span><b id="val-n">20%</b></label>
+                            <input type="range" id="slider-n" min="0" max="100" value="20">
+                        </div>
+                        <button id="apply-personality-btn" style="margin-top: 0.5rem; padding: 0.5rem; background: #0284c7; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%;">
+                            Aplicar Personalidade
+                        </button>
+                    </div>
+                </div>
+
+                <!-- PAINEL AFETIVO (PAD) COM MODOS AUTOMÁTICO E MANUAL -->
+				<div class="panel-box">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-color);">
+                        <span style="font-size: 0.85rem; font-weight: bold;">Módulo Emocional (PAD):</span>
+                        <input type="checkbox" id="emotion-toggle" checked style="width: 18px; height: 18px; cursor: pointer;">
+                    </div>
+					<h3>
+						<span>🧪 Estado Afetivo (Modelo PAD)</span>
+					</h3>
+					
+					<!-- CHAVEADOR DO MODO AUTOMÁTICO -->
+					<div id="auto-emotion-wrapper" style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem; margin-bottom: 0.8rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-color);">
+						<span style="font-size: 0.8rem; color: #cbd5e1;">Modo Emocional Automático:</span>
+						<input type="checkbox" id="auto-emotion-toggle" style="width: 16px; height: 16px; cursor: pointer;">
+					</div>
+
+					<div class="slider-group" id="emotion-sliders-group">
+						<div>
+							<label><span>Prazer (P):</span><b id="val-pad-p" style="color: #4ade80;">+20%</b></label>
+							<input type="range" id="slider-pad-p" min="-100" max="100" value="20">
+						</div>
+						<div>
+							<label><span>Excitação (A):</span><b id="val-pad-a" style="color: #f87171;">-10%</b></label>
+							<input type="range" id="slider-pad-a" min="-100" max="100" value="-10">
+						</div>
+						<div>
+							<label><span>Dominância (D):</span><b id="val-pad-d" style="color: #38bdf8;">+30%</b></label>
+							<input type="range" id="slider-pad-d" min="-100" max="100" value="30">
+						</div>
+
+						<div style="display: flex; gap: 0.4rem; margin-top: 0.5rem;">
+							<button class="btn-preset" data-p="80" data-a="60" data-d="70" style="background:#16a34a;">⚡ Entusiasmo</button>
+							<button class="btn-preset" data-p="-60" data-a="70" data-d="40" style="background:#dc2626;">🔥 Alerta</button>
+							<button class="btn-preset" data-p="40" data-a="-70" data-d="60" style="background:#0284c7;">🧘 Sereno</button>
+						</div>
+					</div>
+				</div>
+
+            </div>
+        </div>
+    </div>
+
+    <div id="input-container">
+        <textarea id="user-input" placeholder="Digite sua mensagem ao NIB..." rows="1"></textarea>
+        <button class="send-btn" id="send-btn">Enviar</button>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+
+    <script>
+        marked.setOptions({
+            highlight: function(code, lang) {
+                if (lang && hljs.getLanguage(lang)) return hljs.highlight(code, { language: lang }).value;
+                return hljs.highlightAuto(code).value;
+            },
+            breaks: true
+        });
+
+        const sidebar = document.getElementById('sidebar');
+        document.getElementById('open-sidebar-btn').addEventListener('click', () => sidebar.classList.add('open'));
+        document.getElementById('close-sidebar-btn').addEventListener('click', () => sidebar.classList.remove('open'));
+
+        // CHAVEADOR
+        const learningToggle = document.getElementById('learning-toggle');
+        const learningStatus = document.getElementById('learning-status');
+
+        learningToggle.addEventListener('change', async (e) => {
+            const isChecked = e.target.checked;
+            learningStatus.textContent = isChecked ? "Ativado (Pesquisando memórias...)" : "Desativado (Modo Passivo)";
+            learningStatus.style.color = isChecked ? "#38bdf8" : "#94a3b8";
+
+            const resp = await fetch('/api/toggle-learning', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ enabled: isChecked })
+            });
+
+            const data = await resp.json();
+            if (data.descoberta) {
+                const box = document.createElement('div');
+                box.style.cssText = "background: #1e1b4b; border: 1px solid #6366f1; color: #a5b4fc; padding: 0.8rem; border-radius: 8px; font-size: 0.85rem;";
+                box.innerHTML = `💡 <b>NIB Aprendeu Autonomamente sobre '${data.descoberta.conceito}':</b><br>${data.descoberta.descoberta}`;
+                document.getElementById('chat-container').appendChild(box);
+            }
+        });
+
+		// JS do Chaveador Emocional Automático
+		const autoEmotionToggle = document.getElementById('auto-emotion-toggle');
+
+		autoEmotionToggle.addEventListener('change', async (e) => {
+			const isAuto = e.target.checked;
+			
+			const resp = await fetch('/api/toggle-auto-emotion', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ enabled: isAuto })
+			});
+			
+			const data = await resp.json();
+			
+			// Atualiza os sliders visualmente com os valores retornados pelo modo automático
+			document.getElementById('slider-pad-p').value = data.p * 100;
+			document.getElementById('slider-pad-a').value = data.a * 100;
+			document.getElementById('slider-pad-d').value = data.d * 100;
+			
+			document.getElementById('val-pad-p').textContent = `${data.p > 0 ? '+' : ''}${Math.round(data.p * 100)}%`;
+			document.getElementById('val-pad-a').textContent = `${data.a > 0 ? '+' : ''}${Math.round(data.a * 100)}%`;
+			document.getElementById('val-pad-d').textContent = `${data.d > 0 ? '+' : ''}${Math.round(data.d * 100)}%`;
+		});
+
+        // CHAVEADOR DE PERSONALIDADE (ON/OFF)
+        const personalityToggle = document.getElementById('personality-toggle');
+        const personalityControls = document.getElementById('personality-controls');
+
+        personalityToggle.addEventListener('change', async (e) => {
+            const isEnabled = e.target.checked;
+            personalityControls.style.opacity = isEnabled ? '1' : '0.4';
+            personalityControls.querySelectorAll('input, button').forEach(el => el.disabled = !isEnabled);
+
+            await fetch('/api/toggle-personality', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ enabled: isEnabled })
+            });
+        });
+
+        // CHAVEADOR GLOBAL DE EMOÇÃO (ON/OFF)
+        const emotionToggle = document.getElementById('emotion-toggle');
+        const emotionSlidersGroup = document.getElementById('emotion-sliders-group');
+        const autoEmotionWrapper = document.getElementById('auto-emotion-wrapper');
+
+        emotionToggle.addEventListener('change', async (e) => {
+            const isEnabled = e.target.checked;
+            emotionSlidersGroup.style.opacity = isEnabled ? '1' : '0.4';
+            autoEmotionWrapper.style.opacity = isEnabled ? '1' : '0.4';
+            
+            emotionSlidersGroup.querySelectorAll('input, button').forEach(el => el.disabled = !isEnabled);
+            document.getElementById('auto-emotion-toggle').disabled = !isEnabled;
+
+            await fetch('/api/toggle-emotion', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ enabled: isEnabled })
+            });
+        });
+
+        // SLIDERS OCEAN
+        ['o', 'c', 'e', 'a', 'n'].forEach(s => {
+            const input = document.getElementById(`slider-${s}`);
+            const display = document.getElementById(`val-${s}`);
+            input.addEventListener('input', () => display.textContent = `${input.value}%`);
+        });
+
+        document.getElementById('apply-personality-btn').addEventListener('click', async () => {
+            await fetch('/api/set-custom-personality', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    o_pct: parseFloat(document.getElementById('slider-o').value),
+                    c_pct: parseFloat(document.getElementById('slider-c').value),
+                    e_pct: parseFloat(document.getElementById('slider-e').value),
+                    a_pct: parseFloat(document.getElementById('slider-a').value),
+                    n_pct: parseFloat(document.getElementById('slider-n').value)
+                })
+            });
+            alert('✓ Personalidade do NIB atualizada!');
+        });
+
+        // SLIDERS PAD
+        const sliderP = document.getElementById('slider-pad-p');
+        const sliderA = document.getElementById('slider-pad-a');
+        const sliderD = document.getElementById('slider-pad-d');
+
+        async function applyEmotion() {
+            document.getElementById('val-pad-p').textContent = `${sliderP.value > 0 ? '+' : ''}${sliderP.value}%`;
+            document.getElementById('val-pad-a').textContent = `${sliderA.value > 0 ? '+' : ''}${sliderA.value}%`;
+            document.getElementById('val-pad-d').textContent = `${sliderD.value > 0 ? '+' : ''}${sliderD.value}%`;
+
+            await fetch('/api/set-emotion', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    p: parseFloat(sliderP.value),
+                    a: parseFloat(sliderA.value),
+                    d: parseFloat(sliderD.value)
+                })
+            });
+        }
+
+        [sliderP, sliderA, sliderD].forEach(s => s.addEventListener('input', applyEmotion));
+
+        document.querySelectorAll('.btn-preset').forEach(btn => {
+            btn.addEventListener('click', () => {
+                sliderP.value = btn.getAttribute('data-p');
+                sliderA.value = btn.getAttribute('data-a');
+                sliderD.value = btn.getAttribute('data-d');
+                applyEmotion();
+            });
+        });
+
+        // FORMATADORES DE DADOS E JSON PARA INTERFACE
+        function formatJSONToHTML(data) {
+            if (data === null || data === undefined) return '';
+            if (typeof data === 'string' || typeof data === 'number' || typeof data === 'boolean') {
+                return marked.parse(String(data));
+            }
+
+            if (Array.isArray(data)) {
+                if (data.length === 0) return '<em>(Lista vazia)</em>';
+                if (typeof data[0] === 'object' && data[0] !== null && !Array.isArray(data[0])) {
+                    const keys = Array.from(new Set(data.flatMap(item => Object.keys(item))));
+                    let html = '<div style="overflow-x:auto; margin:0.8rem 0;"><table>';
+                    html += '<thead><tr>';
+                    keys.forEach(k => {
+                        const label = k.charAt(0).toUpperCase() + k.slice(1).replace(/_/g, ' ');
+                        html += `<th>${label}</th>`;
+                    });
+                    html += '</tr></thead><tbody>';
+                    data.forEach(row => {
+                        html += '<tr>';
+                        keys.forEach(k => {
+                            const val = row[k] !== undefined ? row[k] : '';
+                            const valStr = (typeof val === 'object' && val !== null) ? formatJSONToHTML(val) : marked.parseInline(String(val));
+                            html += `<td>${valStr}</td>`;
+                        });
+                        html += '</tr>';
+                    });
+                    html += '</tbody></table></div>';
+                    return html;
+                } else {
+                    let html = '<ul style="margin:0.5rem 0; padding-left:1.2rem;">';
+                    data.forEach(item => {
+                        html += `<li>${(typeof item === 'object' && item !== null) ? formatJSONToHTML(item) : marked.parseInline(String(item))}</li>`;
+                    });
+                    html += '</ul>';
+                    return html;
+                }
+            }
+
+            if (typeof data === 'object') {
+                let html = '';
+                const mainTextKeys = ['resposta', 'response', 'mensagem', 'message', 'texto', 'text', 'content', 'output', 'explicacao', 'resumo', 'descoberta'];
+                const foundMainKey = mainTextKeys.find(k => k in data && typeof data[k] === 'string');
+
+                if (foundMainKey) {
+                    html += `<div style="margin-bottom:0.8rem;">${marked.parse(data[foundMainKey])}</div>`;
+                }
+
+                const otherKeys = Object.keys(data).filter(k => k !== foundMainKey);
+                if (otherKeys.length > 0) {
+                    html += '<div class="json-card">';
+                    otherKeys.forEach(k => {
+                        const label = k.charAt(0).toUpperCase() + k.slice(1).replace(/_/g, ' ');
+                        const val = data[k];
+                        html += '<div class="json-card-item">';
+                        html += `<span class="json-key">${label}:</span> `;
+                        if (typeof val === 'object' && val !== null) {
+                            html += formatJSONToHTML(val);
+                        } else {
+                            html += `<span>${marked.parseInline(String(val))}</span>`;
+                        }
+                        html += '</div>';
+                    });
+                    html += '</div>';
+                }
+                return html;
+            }
+
+            return marked.parse(String(data));
+        }
+
+        function cleanStreamingText(rawText) {
+            if (!rawText) return '';
+            const trimmed = rawText.trim();
+
+            if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+                try {
+                    const parsed = JSON.parse(trimmed);
+                    return formatJSONToHTML(parsed);
+                } catch (e) {}
+            }
+
+            let processedText = rawText.replace(/```(?:json)?\s*([\s\S]*?)\s*```/gi, (fullMatch, jsonStr) => {
+                const cleanJsonStr = jsonStr.trim();
+                if ((cleanJsonStr.startsWith('{') && cleanJsonStr.endsWith('}')) || (cleanJsonStr.startsWith('[') && cleanJsonStr.endsWith(']'))) {
+                    try {
+                        const parsed = JSON.parse(cleanJsonStr);
+                        return '\n\n' + formatJSONToHTML(parsed) + '\n\n';
+                    } catch (e) {
+                        return fullMatch;
+                    }
+                }
+                return fullMatch;
+            });
+
+            if (trimmed.startsWith('{')) {
+                const match = trimmed.match(/"(?:resposta|response|mensagem|message|texto|text|content|output|explicacao)"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"?/i);
+                if (match && match[1]) {
+                    const cleanStr = match[1].replace(/\\n/g, '\n').replace(/\\"/g, '"');
+                    return marked.parse(cleanStr);
+                }
+                const partialMatch = trimmed.match(/"(?:resposta|response|mensagem|message|texto|text|content|output|explicacao)"\s*:\s*"(.*)/i);
+                if (partialMatch && partialMatch[1]) {
+                    let partialStr = partialMatch[1].replace(/["}\s]+$/, '');
+                    const cleanStr = partialStr.replace(/\\n/g, '\n').replace(/\\"/g, '"');
+                    return marked.parse(cleanStr);
+                }
+            }
+
+            return marked.parse(processedText);
+        }
+
+        // CHAT ENGINE
+        const chatContainer = document.getElementById('chat-container');
+        const userInput = document.getElementById('user-input');
+
+        function appendMessage(text, sender) {
+            const msgDiv = document.createElement('div');
+            msgDiv.classList.add('message', sender);
+            if (sender === 'user') {
+                msgDiv.textContent = text;
+            } else {
+                msgDiv.innerHTML = cleanStreamingText(text);
+            }
+            chatContainer.appendChild(msgDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            return msgDiv;
+        }
+
+        async function sendMessage() {
+            const text = userInput.value.trim();
+            if (!text) return;
+
+            userInput.value = '';
+            appendMessage(text, 'user');
+
+            const aiMsgDiv = appendMessage('...', 'ai');
+            let fullMarkdown = '';
+
+            const eventSource = new EventSource(`/api/chat?prompt=${encodeURIComponent(text)}`);
+
+            eventSource.onmessage = function(event) {
+                if (event.data === '[DONE]') {
+                    eventSource.close();
+                    aiMsgDiv.innerHTML = cleanStreamingText(fullMarkdown);
+                    aiMsgDiv.querySelectorAll('pre code').forEach((block) => hljs.highlightElement(block));
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                    return;
+                }
+                const data = JSON.parse(event.data);
+                
+                if (data.curiosidade) {
+                    const box = document.createElement('div');
+                    box.style.cssText = "background: #1e1b4b; border: 1px solid #6366f1; color: #a5b4fc; padding: 0.8rem; border-radius: 8px; font-size: 0.85rem; margin-top: 0.5rem;";
+                    box.innerHTML = `💡 <b>NIB Aprendeu Autonomamente sobre '${data.conceito}':</b><br>${data.texto}`;
+                    chatContainer.appendChild(box);
+                    return;
+                }
+
+                fullMarkdown += data.token;
+                aiMsgDiv.innerHTML = cleanStreamingText(fullMarkdown);
+                aiMsgDiv.querySelectorAll('pre code').forEach((block) => hljs.highlightElement(block));
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            };
+
+            eventSource.onerror = () => eventSource.close();
+        }
+
+        document.getElementById('send-btn').addEventListener('click', sendMessage);
+        userInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+		
+		// LÓGICA DE SELEÇÃO DE MODELOS DO OLLAMA
+		const modelSelect = document.getElementById('ollama-model-select');
+
+		async function carregarModelosOllama() {
+			try {
+				const resp = await fetch('/api/ollama-models');
+				const data = await resp.json();
+				
+				modelSelect.innerHTML = '';
+				
+				data.models.forEach(modelName => {
+					const opt = document.createElement('option');
+					opt.value = modelName;
+					opt.textContent = modelName;
+					if (modelName === data.current) {
+						opt.selected = true;
+					}
+					modelSelect.appendChild(opt);
+				});
+			} catch (err) {
+				modelSelect.innerHTML = '<option value="qwen2.5:3b">qwen2.5:3b (padrão)</option>';
+			}
+		}
+
+		// Troca o modelo ativo no backend assim que o usuário muda a opção no menu
+		modelSelect.addEventListener('change', async (e) => {
+			const selectedModel = e.target.value;
+			const resp = await fetch('/api/set-ollama-model', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ model: selectedModel })
+			});
+			
+			const data = await resp.json();
+			if (data.status === 'success') {
+				alert(`✓ Modelo do NIB alterado para: ${data.current}`);
+			}
+		});
+
+		// Carrega a lista de modelos ao abrir o menu lateral ⚙️
+		document.getElementById('open-sidebar-btn').addEventListener('click', () => {
+			carregarModelosOllama();
+		});
+		
+		
+    </script>
+</body>
+</html>
