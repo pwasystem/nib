@@ -20,6 +20,9 @@
     3. **🔥 3ª Camada - Tendências & Web Geral**: Acionada caso a busca de notícias não traga resultados, pesquisando tendências e web aberta.
   - Todo conhecimento adquirido é automaticamente memorizado no NIB.
 
+- **🔍 Detecção de Busca Direta & Correção de Erros**:
+  - Quando o usuário solicita uma busca (ex: *"pesquise...", "busque na internet...", "procure..."*) ou sinaliza que a IA está errada (ex: *"você errou", "não é essa", "está errado"*), o NIB força imediatamente uma pesquisa na web para atualizar seus conhecimentos e responder com dados corretos.
+
 - **🎨 Módulo de Criatividade & Aprendizado Autônomo (`curiosity_core.py`)**:
   - Quando o **Aprendizado Autônomo** está ativo (`learning_enabled = True`), a função de criatividade inspeciona o Neocórtex e Hipocampo para identificar conceitos de interesse e memórias passadas.
   - Formula pesquisas criativas e investigativas, consulta fontes externas e absorve novos aprendizados de forma contínua.

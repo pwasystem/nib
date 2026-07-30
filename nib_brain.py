@@ -330,6 +330,23 @@ class NeuroInformatikBrain:
         except Exception:
             pass
 
+    def solicitou_pesquisa_ou_correcao(self, consulta: str) -> bool:
+        """Verifica se a consulta do usuário contém pedidos explícitos de busca ou sinalização de erro/correção."""
+        c_lower = consulta.lower()
+        gatilhos = [
+            "pesquise", "pesquisar", "pesquisa", "busque", "buscar", "busca", 
+            "procure", "procurar", "procura", "google", "está errado", "esta errado", 
+            "tá errado", "ta errado", "está errada", "esta errada", "tá errada", "ta errada", 
+            "errado", "errada", "errou", "você errou", "voce errou", "não é isso", "nao e isso", 
+            "não é essa", "nao e essa", "está incorreto", "esta incorreto", "incorreto", 
+            "não está certo", "nao esta certo", "está enganado", "esta enganado", "corrija", 
+            "corrigir", "atualize seus conhecimentos", "atualize seu conhecimento"
+        ]
+        for g in gatilhos:
+            if g in c_lower:
+                return True
+        return False
+
     # --------------------------------------------------
     # RESGATE DE MEMÓRIA
     # --------------------------------------------------
@@ -400,8 +417,16 @@ class NeuroInformatikBrain:
         if self.memory_mode == "human":
             self._salvar_neocortex()
 
-        # 3. Tratamento de Lacuna de Conhecimento quando nada for encontrado na memória local
-        if not contexto or len("\n".join(contexto).strip()) < 15:
+        # 3. Forçar Pesquisa Web em caso de Solicitação Explícita ou Correção do Usuário
+        forcar_pesquisa = self.solicitou_pesquisa_ou_correcao(consulta)
+        if forcar_pesquisa:
+            logger.log_nib("REQUISIÇÃO/CORREÇÃO", f"Solicitação explícita de busca/correção detectada: '{consulta}'", logger.Colors.BRIGHT_MAGENTA)
+            conhecimento = self.pesquisar_conhecimento_externo(consulta, apenas_academico=False)
+            if conhecimento and "Nenhuma informação" not in conhecimento:
+                contexto.append(f"[Conhecimento Atualizado via Pesquisa Web (Solicitado/Correção)]: {conhecimento}")
+
+        # 4. Tratamento de Lacuna de Conhecimento quando nada for encontrado na memória local
+        elif not contexto or len("\n".join(contexto).strip()) < 15:
             logger.log_nib("SISTEMA NIB", "Informação ausente na memória local. Disparando pesquisa externa em camadas (Acadêmica ➔ Notícias ➔ Tendências/Web)...", logger.Colors.BRIGHT_YELLOW)
             conhecimento = self.pesquisar_conhecimento_externo(consulta, apenas_academico=False)
             if conhecimento and "Nenhuma informação" not in conhecimento:
