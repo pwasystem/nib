@@ -25,7 +25,7 @@
   - Formula pesquisas criativas e investigativas, consulta fontes externas e absorve novos aprendizados de forma contínua.
 
 - **🎨 Sistema de Logs Coloridos no Terminal (`logger_nib.py`)**:
-  - Formatação com códigos ANSI e suporte UTF-8 no console (`[MEMÓRIA HUMANA]`, `[MEMÓRIA PERFEITA]`, `[HIPOCAMPO]`, `[NEOCÓRTEX]`, `[PODA SINÁPTICA]`, `[REFORÇO SINÁPTICO]`, `🎨 [CRIATIVIDADE NIB]`, `🎓 [BUSCA ACADÊMICA]`, `📰 [BUSCA NOTÍCIAS]`, `🔥 [BUSCA TENDÊNCIAS/WEB]`, `[LOG WAL]`).
+  - Formatação com códigos ANSI e suporte UTF-8 no console (`[MEMÓRIA HUMANA]`, `[MEMÓRIA PERFEITA]`, `[HIPOCAMPO]`, `[NEOCÓRTEX]`, `[PODA SINÁPTICA]`, `[REFORÇO SINÁPTICO]`, `🌐 [PESQUISA WEB]`, `🎨 [CRIATIVIDADE NIB]`, `🎓 [BUSCA ACADÊMICA]`, `📰 [BUSCA NOTÍCIAS]`, `🔥 [BUSCA TENDÊNCIAS/WEB]`, `[LOG WAL]`).
 
 - **🧪 Sistema Límbico (Modelo PAD)**: Simulação emocional com modulação reativa automática ou manual (Prazer, Excitação e Dominância).
 - **🎛️ Córtex Pré-Frontal (Big Five / OCEAN)**: Personalidade adaptável em tempo de execução via sliders (Abertura, Conscienciosidade, Extroversão, Amabilidade e Neuroticismo).
