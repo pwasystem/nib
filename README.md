@@ -96,6 +96,7 @@ http://127.0.0.1:8000/dashboard
 |---|---|---|
 | `GET` | `/api/chat` | Endpoint principal de chat com streaming SSE não-bloqueante |
 | `GET` | `/dashboard` | Interface do Dashboard Cognitivo exibida como página inteira |
+| `GET` | `/personality-editor` | Editor de Personalidades standalone em janela/aba exclusiva |
 | `GET` | `/api/dashboard/stats` | Retorna estatísticas de memória, força sináptica, histórico de podas e estados |
 | `GET` | `/api/dashboard/graph` | Retorna nós e arestas do Neocórtex formatados para o visualizador de rede |
 | `GET` | `/api/dashboard/logs` | Retorna o histórico recente de logs do terminal para agregação no Dashboard |

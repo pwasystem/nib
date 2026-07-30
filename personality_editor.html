@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>✏️ NIB - Editor de Personalidades & Arquétipos</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --sidebar-bg: #111827;
+            --text-color: #f8fafc;
+            --accent-color: #38bdf8;
+            --border-color: #334155;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0; padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex; flex-direction: column;
+            height: 100vh; overflow: hidden;
+        }
+
+        header {
+            background-color: var(--card-bg);
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex; justify-content: space-between; align-items: center;
+            z-index: 10;
+        }
+
+        header h1 {
+            margin: 0; font-size: 1.2rem; color: var(--accent-color);
+            display: flex; align-items: center; gap: 0.5rem;
+        }
+
+        .header-links { display: flex; gap: 0.6rem; }
+        .nav-btn {
+            background: var(--sidebar-bg); border: 1px solid var(--border-color);
+            color: var(--text-color); padding: 0.45rem 0.8rem; border-radius: 6px;
+            text-decoration: none; font-size: 0.82rem; font-weight: bold;
+            display: flex; align-items: center; gap: 0.3rem; transition: background 0.2s;
+        }
+        .nav-btn:hover { background: var(--border-color); }
+
+        #main-container {
+            display: flex; flex: 1; overflow: hidden;
+        }
+
+        /* PAINEL ESQUERDO: LISTA DE TEMPLATES */
+        #template-sidebar {
+            width: 340px; background: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex; flex-direction: column; overflow-y: auto;
+        }
+
+        .sidebar-sec-title {
+            padding: 0.8rem 1rem; background: #0b0f19; font-size: 0.8rem;
+            font-weight: bold; color: var(--accent-color); border-bottom: 1px solid var(--border-color);
+            text-transform: uppercase; letter-spacing: 0.05em;
+        }
+
+        .template-item {
+            padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color);
+            cursor: pointer; transition: background 0.2s;
+        }
+        .template-item:hover { background: var(--card-bg); }
+        .template-item.active { background: #0284c7; color: white; }
+        .template-item .t-name { font-weight: bold; font-size: 0.85rem; }
+        .template-item .t-desc { font-size: 0.75rem; color: #94a3b8; margin-top: 0.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .template-item.active .t-desc { color: #e0f2fe; }
+
+        /* PAINEL DIREITO: EDITOR */
+        #editor-workspace {
+            flex: 1; padding: 1.5rem; overflow-y: auto;
+            display: flex; flex-direction: column; gap: 1.2rem;
+        }
+
+        .editor-card {
+            background: var(--card-bg); border: 1px solid var(--border-color);
+            border-radius: 10px; padding: 1.2rem;
+        }
+
+        .editor-card h3 {
+            margin-top: 0; font-size: 1rem; color: var(--accent-color);
+            border-bottom: 1px solid var(--border-color); padding-bottom: 0.6rem;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+
+        .form-group { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1rem; }
+        .form-group label { font-size: 0.82rem; color: #cbd5e1; font-weight: bold; }
+        .form-control {
+            background: var(--bg-color); border: 1px solid var(--border-color);
+            color: var(--text-color); padding: 0.6rem; border-radius: 6px;
+            font-size: 0.88rem; outline: none; width: 100%;
+        }
+        .form-control:focus { border-color: var(--accent-color); }
+
+        .slider-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+        .slider-box { background: #0b0f19; padding: 0.8rem; border-radius: 6px; border: 1px solid var(--border-color); }
+        .slider-box label { font-size: 0.8rem; display: flex; justify-content: space-between; color: #cbd5e1; margin-bottom: 0.4rem; }
+        input[type="range"] { width: 100%; accent-color: var(--accent-color); cursor: pointer; }
+
+        .btn-group { display: flex; gap: 0.8rem; margin-top: 1rem; flex-wrap: wrap; }
+        .btn-action {
+            padding: 0.6rem 1.2rem; border: none; border-radius: 6px;
+            font-weight: bold; font-size: 0.85rem; cursor: pointer; transition: background 0.2s;
+        }
+        .btn-primary { background: #0284c7; color: white; }
+        .btn-success { background: #16a34a; color: white; }
+        .btn-danger { background: #dc2626; color: white; }
+
+        /* TOAST CONTAINER */
+        #toast-container {
+            position: fixed; bottom: 20px; right: 20px; z-index: 9999;
+            display: flex; flex-direction: column; gap: 0.6rem; max-width: 400px; pointer-events: none;
+        }
+        .toast {
+            background: #1e293b; color: #f8fafc; border-left: 4px solid #38bdf8;
+            border: 1px solid var(--border-color); padding: 0.8rem 1rem; border-radius: 8px;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); font-size: 0.85rem; line-height: 1.4;
+            pointer-events: auto; animation: toastIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .toast.success { border-left-color: #4ade80; }
+        .toast.warning { border-left-color: #facc15; }
+        .toast.error { border-left-color: #f87171; }
+        @keyframes toastIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>✏️ NIB — Editor de Personalidades & Arquétipos</h1>
+        <div class="header-links">
+            <a href="/" class="nav-btn">💬 Voltar ao Chat</a>
+            <a href="/dashboard" class="nav-btn">📊 Dashboard Cognitivo</a>
+        </div>
+    </header>
+
+    <div id="main-container">
+        <!-- BARRA LATERAL ESQUERDA: LISTA DE TEMPLATES -->
+        <div id="template-sidebar">
+            <div style="padding: 0.8rem; border-bottom: 1px solid var(--border-color); display: flex; gap: 0.5rem;">
+                <button id="btn-new-personality" style="flex: 1; padding: 0.55rem; background: #16a34a; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 0.8rem; cursor: pointer;">
+                    ➕ Novo Arquétipo Customizado
+                </button>
+            </div>
+
+            <!-- UPLOAD DE ARQUIVOS -->
+            <div style="padding: 0.8rem; background: #0b0f19; border-bottom: 1px solid var(--border-color);">
+                <label style="font-size: 0.78rem; color: #cbd5e1; display: block; margin-bottom: 0.3rem;">
+                    📁 Upload de Arquivo (.json ou .py):
+                </label>
+                <input type="file" id="upload-file-input" accept=".json,.py" style="font-size: 0.75rem; color: #94a3b8; width: 100%;">
+            </div>
+
+            <div id="templates-list-container">
+                <div style="padding: 1rem; color: #94a3b8; font-size: 0.85rem;">Carregando personalidades...</div>
+            </div>
+        </div>
+
+        <!-- ESPAÇO DE TRABALHO: EDITOR DE PARÂMETROS -->
+        <div id="editor-workspace">
+            <div class="editor-card">
+                <h3>
+                    <span>⚙️ Parâmetros do Arquétipo</span>
+                    <span id="active-template-badge" style="font-size: 0.75rem; background: #0369a1; padding: 0.2rem 0.6rem; border-radius: 4px; color: white;">Novo Template</span>
+                </h3>
+
+                <div class="form-group">
+                    <label>Nome do Arquétipo / Personalidade:</label>
+                    <input type="text" id="edit-name" class="form-control" placeholder="Ex: Engenheiro Entusiasmado">
+                </div>
+
+                <div class="form-group">
+                    <label>Descrição detalhada:</label>
+                    <textarea id="edit-desc" class="form-control" rows="2" placeholder="Descreva o estilo mental e comportamental do arquétipo..."></textarea>
+                </div>
+
+                <!-- SLIDERS BIG FIVE (OCEAN) -->
+                <h4 style="margin-top: 1.2rem; margin-bottom: 0.6rem; font-size: 0.9rem; color: var(--accent-color);">🎛️ Traços Big Five (OCEAN - Córtex Pré-Frontal)</h4>
+                <div class="slider-grid">
+                    <div class="slider-box">
+                        <label><span>Abertura (O):</span><b id="val-edit-o">80%</b></label>
+                        <input type="range" id="slider-edit-o" min="0" max="100" value="80">
+                    </div>
+                    <div class="slider-box">
+                        <label><span>Conscienciosidade (C):</span><b id="val-edit-c">90%</b></label>
+                        <input type="range" id="slider-edit-c" min="0" max="100" value="90">
+                    </div>
+                    <div class="slider-box">
+                        <label><span>Extroversão (E):</span><b id="val-edit-e">40%</b></label>
+                        <input type="range" id="slider-edit-e" min="0" max="100" value="40">
+                    </div>
+                    <div class="slider-box">
+                        <label><span>Amabilidade (A):</span><b id="val-edit-a">70%</b></label>
+                        <input type="range" id="slider-edit-a" min="0" max="100" value="70">
+                    </div>
+                    <div class="slider-box">
+                        <label><span>Neuroticismo (N):</span><b id="val-edit-n">20%</b></label>
+                        <input type="range" id="slider-edit-n" min="0" max="100" value="20">
+                    </div>
+                </div>
+
+                <!-- SLIDERS EMOCIONAIS (PAD) -->
+                <h4 style="margin-top: 1.2rem; margin-bottom: 0.6rem; font-size: 0.9rem; color: #4ade80;">🧪 Estado Afetivo (Modelo PAD - Sistema Límbico)</h4>
+                <div class="slider-grid">
+                    <div class="slider-box">
+                        <label><span>Prazer (P):</span><b id="val-edit-pad-p" style="color: #4ade80;">+20%</b></label>
+                        <input type="range" id="slider-edit-pad-p" min="-100" max="100" value="20">
+                    </div>
+                    <div class="slider-box">
+                        <label><span>Excitação (A):</span><b id="val-edit-pad-a" style="color: #f87171;">-10%</b></label>
+                        <input type="range" id="slider-edit-pad-a" min="-100" max="100" value="-10">
+                    </div>
+                    <div class="slider-box">
+                        <label><span>Dominância (D):</span><b id="val-edit-pad-d" style="color: #38bdf8;">+30%</b></label>
+                        <input type="range" id="slider-edit-pad-d" min="-100" max="100" value="30">
+                    </div>
+                </div>
+
+                <!-- ÁREAS DE INTERESSE DE APRENDIZADO AUTÔNOMO -->
+                <h4 style="margin-top: 1.2rem; margin-bottom: 0.6rem; font-size: 0.9rem; color: #facc15;">🎯 Áreas de Interesse (Aprendizado Autônomo)</h4>
+                <div class="form-group">
+                    <label style="font-size: 0.78rem; color: #94a3b8;">Tópicos de estudo característicos separados por vírgula (direcionam o motor de curiosidade do NIB):</label>
+                    <input type="text" id="edit-interests" class="form-control" placeholder="Ex: inteligência artificial, cibersegurança, física quântica">
+                </div>
+
+                <div class="btn-group">
+                    <button id="btn-save-custom" class="btn-action btn-success">💾 Salvar & Aplicar Arquétipo</button>
+                    <button id="btn-apply-selected" class="btn-action btn-primary">✨ Aplicar ao NIB</button>
+                    <button id="btn-delete-custom" class="btn-action btn-danger" style="display: none;">🗑️ Excluir Template</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <script>
+        let allTemplatesData = {};
+        let selectedTemplateObject = null;
+
+        function showToast(message, type = 'info', duration = 4000) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = message.replace(/\n/g, '<br>');
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(20px)';
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        }
+
+        // Atualização dinâmica dos contadores de sliders
+        function setupSliderSync(sliderId, labelId, isPad = false) {
+            const slider = document.getElementById(sliderId);
+            const label = document.getElementById(labelId);
+            slider.addEventListener('input', (e) => {
+                const val = e.target.value;
+                label.textContent = isPad ? `${val >= 0 ? '+' : ''}${val}%` : `${val}%`;
+            });
+        }
+
+        setupSliderSync('slider-edit-o', 'val-edit-o');
+        setupSliderSync('slider-edit-c', 'val-edit-c');
+        setupSliderSync('slider-edit-e', 'val-edit-e');
+        setupSliderSync('slider-edit-a', 'val-edit-a');
+        setupSliderSync('slider-edit-n', 'val-edit-n');
+        setupSliderSync('slider-edit-pad-p', 'val-edit-pad-p', true);
+        setupSliderSync('slider-edit-pad-a', 'val-edit-pad-a', true);
+        setupSliderSync('slider-edit-pad-d', 'val-edit-pad-d', true);
+
+        async function carregarTodosTemplates() {
+            try {
+                const resp = await fetch('/api/personality-templates');
+                const data = await resp.json();
+                if (data.status === 'success') {
+                    allTemplatesData = data.templates;
+                    renderizarSidebarTemplates();
+                }
+            } catch (err) {
+                showToast("Erro ao carregar lista de personalidades: " + err.message, "error");
+            }
+        }
+
+        function renderizarSidebarTemplates() {
+            const container = document.getElementById('templates-list-container');
+            container.innerHTML = '';
+
+            const criarSecao = (titulo, lista) => {
+                if (!lista || lista.length === 0) return;
+                const secTitle = document.createElement('div');
+                secTitle.className = 'sidebar-sec-title';
+                secTitle.textContent = titulo;
+                container.appendChild(secTitle);
+
+                lista.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'template-item';
+                    div.innerHTML = `
+                        <div class="t-name">${item.name}</div>
+                        <div class="t-desc">${item.description || ''}</div>
+                    `;
+                    div.addEventListener('click', () => carregarFormularioTemplate(item));
+                    container.appendChild(div);
+                });
+            };
+
+            criarSecao("🛠️ Personalidades Customizadas", allTemplatesData.custom);
+            criarSecao("🎭 Arquétipos Cognitivos Presets", allTemplatesData.presets);
+            criarSecao("🌟 Zodíaco Ocidental", allTemplatesData.zodiac);
+            criarSecao("🐉 Matriz Sexagesimal Chinesa", allTemplatesData.chinese_matrix);
+        }
+
+        function carregarFormularioTemplate(item) {
+            selectedTemplateObject = item;
+            document.getElementById('active-template-badge').textContent = item.type ? item.type.toUpperCase() : "CUSTOM";
+            document.getElementById('edit-name').value = item.name || '';
+            document.getElementById('edit-desc').value = item.description || '';
+
+            const ocean = item.ocean || {};
+            document.getElementById('slider-edit-o').value = ocean.O ? Math.round(ocean.O * 100) : 80;
+            document.getElementById('val-edit-o').textContent = `${document.getElementById('slider-edit-o').value}%`;
+            document.getElementById('slider-edit-c').value = ocean.C ? Math.round(ocean.C * 100) : 90;
+            document.getElementById('val-edit-c').textContent = `${document.getElementById('slider-edit-c').value}%`;
+            document.getElementById('slider-edit-e').value = ocean.E ? Math.round(ocean.E * 100) : 40;
+            document.getElementById('val-edit-e').textContent = `${document.getElementById('slider-edit-e').value}%`;
+            document.getElementById('slider-edit-a').value = ocean.A ? Math.round(ocean.A * 100) : 70;
+            document.getElementById('val-edit-a').textContent = `${document.getElementById('slider-edit-a').value}%`;
+            document.getElementById('slider-edit-n').value = ocean.N ? Math.round(ocean.N * 100) : 20;
+            document.getElementById('val-edit-n').textContent = `${document.getElementById('slider-edit-n').value}%`;
+
+            const pad = item.pad || {};
+            document.getElementById('slider-edit-pad-p').value = pad.p !== undefined ? Math.round(pad.p * 100) : 20;
+            document.getElementById('val-edit-pad-p').textContent = `${document.getElementById('slider-edit-pad-p').value >= 0 ? '+' : ''}${document.getElementById('slider-edit-pad-p').value}%`;
+            document.getElementById('slider-edit-pad-a').value = pad.a !== undefined ? Math.round(pad.a * 100) : -10;
+            document.getElementById('val-edit-pad-a').textContent = `${document.getElementById('slider-edit-pad-a').value >= 0 ? '+' : ''}${document.getElementById('slider-edit-pad-a').value}%`;
+            document.getElementById('slider-edit-pad-d').value = pad.d !== undefined ? Math.round(pad.d * 100) : 30;
+            document.getElementById('val-edit-pad-d').textContent = `${document.getElementById('slider-edit-pad-d').value >= 0 ? '+' : ''}${document.getElementById('slider-edit-pad-d').value}%`;
+
+            const interests = item.interests || [];
+            document.getElementById('edit-interests').value = interests.join(', ');
+
+            const btnDelete = document.getElementById('btn-delete-custom');
+            btnDelete.style.display = item.type === 'custom' ? 'inline-block' : 'none';
+            
+            showToast(`💡 Arquétipo selecionado: <b>${item.name}</b>`, 'info', 2000);
+        }
+
+        document.getElementById('btn-new-personality').addEventListener('click', () => {
+            selectedTemplateObject = null;
+            document.getElementById('active-template-badge').textContent = "NOVO TEMPLATE";
+            document.getElementById('edit-name').value = "Nova Personalidade";
+            document.getElementById('edit-desc').value = "Descrição do novo arquétipo...";
+            document.getElementById('edit-interests').value = "tecnologia, inteligência artificial, inovação";
+            document.getElementById('btn-delete-custom').style.display = 'none';
+        });
+
+        // Salvar e Aplicar Customizado
+        document.getElementById('btn-save-custom').addEventListener('click', async () => {
+            const name = document.getElementById('edit-name').value.trim();
+            const desc = document.getElementById('edit-desc').value.trim();
+            const interestsRaw = document.getElementById('edit-interests').value;
+            const interests = interestsRaw.split(',').map(s => s.strip ? s.strip() : s.trim()).filter(Boolean);
+
+            const payload = {
+                id: selectedTemplateObject && selectedTemplateObject.type === 'custom' ? selectedTemplateObject.id : null,
+                name: name || "Personalidade Customizada",
+                description: desc,
+                ocean: {
+                    O: parseInt(document.getElementById('slider-edit-o').value) / 100,
+                    C: parseInt(document.getElementById('slider-edit-c').value) / 100,
+                    E: parseInt(document.getElementById('slider-edit-e').value) / 100,
+                    A: parseInt(document.getElementById('slider-edit-a').value) / 100,
+                    N: parseInt(document.getElementById('slider-edit-n').value) / 100
+                },
+                pad: {
+                    p: parseInt(document.getElementById('slider-edit-pad-p').value) / 100,
+                    a: parseInt(document.getElementById('slider-edit-pad-a').value) / 100,
+                    d: parseInt(document.getElementById('slider-edit-pad-d').value) / 100
+                },
+                interests: interests,
+                apply: true
+            };
+
+            try {
+                const resp = await fetch('/api/personality/save-custom', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await resp.json();
+                if (data.status === 'success') {
+                    showToast(`✨ Personalidade <b>'${name}'</b> salva e aplicada com sucesso!<br>🎯 <b>Interesses:</b> ${interests.join(', ')}`, 'success', 5000);
+                    carregarTodosTemplates();
+                }
+            } catch (err) {
+                showToast("Erro ao salvar personalidade: " + err.message, "error");
+            }
+        });
+
+        // Aplicar Selecionado diretamente
+        document.getElementById('btn-apply-selected').addEventListener('click', async () => {
+            if (!selectedTemplateObject) {
+                document.getElementById('btn-save-custom').click();
+                return;
+            }
+            try {
+                const resp = await fetch('/api/apply-personality-template', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(selectedTemplateObject)
+                });
+                const data = await resp.json();
+                if (data.status === 'success') {
+                    showToast(`✨ Arquétipo <b>'${data.name}'</b> aplicado ao NIB!<br>🎯 <b>Áreas de Interesse:</b> ${data.interests ? data.interests.join(', ') : 'Padrão'}`, 'success', 5000);
+                }
+            } catch (err) {
+                showToast("Erro ao aplicar arquétipo: " + err.message, "error");
+            }
+        });
+
+        // Excluir Customizado
+        document.getElementById('btn-delete-custom').addEventListener('click', async () => {
+            if (!selectedTemplateObject || selectedTemplateObject.type !== 'custom') return;
+            if (!confirm(`Tem certeza que deseja excluir o template '${selectedTemplateObject.name}'?`)) return;
+
+            try {
+                const resp = await fetch('/api/personality/delete-custom', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: selectedTemplateObject.id })
+                });
+                const data = await resp.json();
+                if (data.status === 'success') {
+                    showToast(`🗑️ Template excluído com sucesso.`, 'warning');
+                    document.getElementById('btn-new-personality').click();
+                    carregarTodosTemplates();
+                }
+            } catch (err) {
+                showToast("Erro ao excluir template: " + err.message, "error");
+            }
+        });
+
+        // Upload de arquivo
+        document.getElementById('upload-file-input').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const resp = await fetch('/api/personality/upload-file', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await resp.json();
+                if (data.status === 'success') {
+                    showToast(`📁 ${data.message}`, 'success');
+                    carregarTodosTemplates();
+                } else {
+                    showToast(`⚠️ ${data.message}`, 'error');
+                }
+            } catch (err) {
+                showToast("Erro ao enviar arquivo: " + err.message, "error");
+            }
+        });
+
+        carregarTodosTemplates();
+    </script>
+</body>
+</html>

@@ -181,6 +181,30 @@
         .stat-card .num { font-size: 2rem; font-weight: bold; color: var(--accent-color); margin-top: 0.3rem; }
         .stat-card .label { font-size: 0.8rem; color: #94a3b8; margin-top: 0.2rem; }
         #network-graph { width: 100%; height: 520px; background: #0b0f19; border-radius: 8px; border: 1px solid var(--border-color); }
+
+        /* SISTERMA DE TOAST NOTIFICATIONS */
+        #toast-container {
+            position: fixed; bottom: 20px; right: 20px; z-index: 9999;
+            display: flex; flex-direction: column; gap: 0.6rem; max-width: 400px; pointer-events: none;
+        }
+        .toast {
+            background: #1e293b; color: #f8fafc; border-left: 4px solid #38bdf8;
+            border: 1px solid var(--border-color); padding: 0.8rem 1rem; border-radius: 8px;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); font-size: 0.85rem; line-height: 1.45;
+            pointer-events: auto; animation: toastIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: opacity 0.3s, transform 0.3s;
+        }
+        .toast.success { border-left-color: #4ade80; }
+        .toast.info { border-left-color: #38bdf8; }
+        .toast.warning { border-left-color: #facc15; }
+        .toast.error { border-left-color: #f87171; }
+        @keyframes toastIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        .interest-badge {
+            background: #0b0f19; border: 1px solid #0284c7; color: #38bdf8;
+            padding: 0.25rem 0.6rem; border-radius: 12px; font-size: 0.73rem; font-weight: 600;
+            display: inline-flex; align-items: center; gap: 0.2rem;
+        }
     </style>
 </head>
 <body>
@@ -354,6 +378,17 @@
                         <button id="apply-template-btn" style="margin-top: 0.6rem; padding: 0.45rem; background: #0284c7; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.8rem; width: 100%; transition: background 0.2s;">
                             ✨ Aplicar Arquétipo & Ajustar Emoções
                         </button>
+                        <a href="/personality-editor" target="_blank" style="margin-top: 0.5rem; padding: 0.45rem; background: #0369a1; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.8rem; width: 100%; text-decoration: none; text-align: center; display: flex; align-items: center; justify-content: center; gap: 0.3rem; transition: background 0.2s;">
+                            ✏️ Editor de Personalidades (Nova Janela) ↗️
+                        </a>
+                    </div>
+                </div>
+
+                <!-- ÁREAS DE INTERESSE DE APRENDIZADO AUTÔNOMO -->
+                <div class="panel-box">
+                    <h3><span>🎯 Áreas de Interesse (Aprendizado Autônomo)</span></h3>
+                    <div id="active-interests-container" style="display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem;">
+                        <span style="font-size: 0.75rem; color: #94a3b8;">Carregando tópicos...</span>
                     </div>
                 </div>
 
@@ -779,6 +814,36 @@
             }
         });
 		
+		// SISTEMA DE NOTIFICAÇÃO VIA TOAST
+		function showToast(message, type = 'info', duration = 4500) {
+			let container = document.getElementById('toast-container');
+			if (!container) {
+				container = document.createElement('div');
+				container.id = 'toast-container';
+				document.body.appendChild(container);
+			}
+			const toast = document.createElement('div');
+			toast.className = `toast ${type}`;
+			toast.innerHTML = message.replace(/\n/g, '<br>');
+			container.appendChild(toast);
+
+			setTimeout(() => {
+				toast.style.opacity = '0';
+				toast.style.transform = 'translateY(20px)';
+				setTimeout(() => toast.remove(), 300);
+			}, duration);
+		}
+
+		function atualizarInteressesUI(interestsList) {
+			const container = document.getElementById('active-interests-container');
+			if (!container) return;
+			if (!interestsList || interestsList.length === 0) {
+				container.innerHTML = '<span style="font-size: 0.75rem; color: #94a3b8;">Nenhum tópico definido</span>';
+				return;
+			}
+			container.innerHTML = interestsList.map(t => `<span class="interest-badge">🎯 ${t}</span>`).join('');
+		}
+
 		// LÓGICA DE SELEÇÃO DE MODELOS DO OLLAMA
 		const modelSelect = document.getElementById('ollama-model-select');
 
@@ -814,7 +879,7 @@
 			
 			const data = await resp.json();
 			if (data.status === 'success') {
-				alert(`✓ Modelo do NIB alterado para: ${data.current}`);
+				showToast(`✓ Modelo do NIB alterado para: <b>${data.current}</b>`, 'success');
 			}
 		});
 
@@ -854,7 +919,7 @@
 			const data = await resp.json();
 			if (data.status === 'success') {
 				atualizarDescricaoMemoria(data.mode);
-				alert(`✓ Modo de memória alterado para: ${data.mode === 'human' ? 'Memória Humana' : 'Memória Perfeita'}`);
+				showToast(`✓ Modo de memória alterado para: <b>${data.mode === 'human' ? 'Memória Humana' : 'Memória Perfeita'}</b>`, 'info');
 			}
 		});
 
@@ -862,9 +927,9 @@
 			const resp = await fetch('/api/prune-memory', { method: 'POST' });
 			const data = await resp.json();
 			if (data.status === 'success') {
-				alert("🍂 Poda sináptica executada! Memórias com baixa retenção caducaram.");
+				showToast("🍂 Poda sináptica executada! Memórias com baixa retenção caducaram.", "warning");
 			} else {
-				alert("⚠️ " + (data.message || "Erro ao executar poda sináptica."));
+				showToast("⚠️ " + (data.message || "Erro ao executar poda sináptica."), "error");
 			}
 		});
 
@@ -878,6 +943,19 @@
 				if (data.status === 'success') {
 					select.innerHTML = '';
 					
+					// Custom Templates
+					if (data.templates.custom && data.templates.custom.length > 0) {
+						const optgCustom = document.createElement('optgroup');
+						optgCustom.label = "🛠️ Personalidades Customizadas";
+						data.templates.custom.forEach(c => {
+							const opt = document.createElement('option');
+							opt.value = JSON.stringify({ type: 'custom', id: c.id });
+							opt.textContent = `⚙️ ${c.name}`;
+							optgCustom.appendChild(opt);
+						});
+						select.appendChild(optgCustom);
+					}
+
 					// Presets Arquétipos
 					const optgPresets = document.createElement('optgroup');
 					optgPresets.label = "🎭 Arquétipos Cognitivos Predefinidos";
@@ -951,10 +1029,14 @@
 						document.getElementById('slider-pad-d').value = data.pad.d;
 						document.getElementById('val-pad-d').textContent = `${data.pad.d >= 0 ? '+' : ''}${data.pad.d}%`;
 
-						alert(`✨ Arquétipo aplicado com sucesso!\n\n• Nome: ${data.name}\n• Descrição: ${data.description}\n• Estado Emocional Resultante: ${data.pad.current_emotion}`);
+						// Atualiza áreas de interesse na UI
+						atualizarInteressesUI(data.interests);
+
+						const interessesStr = data.interests && data.interests.length > 0 ? data.interests.join(', ') : 'Padrão';
+						showToast(`✨ Arquétipo aplicado com sucesso!<br><br>• <b>Nome:</b> ${data.name}<br>• <b>Descrição:</b> ${data.description}<br>• <b>Humor Afetivo:</b> ${data.pad.current_emotion}<br>• 🎯 <b>Foco de Aprendizado:</b> ${interessesStr}`, 'success', 6000);
 					}
 				} catch (err) {
-					alert("Erro ao aplicar template: " + err.message);
+					showToast("Erro ao aplicar template: " + err.message, 'error');
 				}
 			});
 		}
@@ -982,9 +1064,10 @@
 				const data = await resp.json();
 				if (data.status === 'success' && data.intro) {
 					appendMessage(data.intro, 'ai');
+					showToast("💀 Vida do NIB reiniciada com sucesso.", "warning");
 				}
 			} catch (err) {
-				alert('Erro ao reiniciar a vida do NIB: ' + err.message);
+				showToast('Erro ao reiniciar a vida do NIB: ' + err.message, 'error');
 			}
 		});
 

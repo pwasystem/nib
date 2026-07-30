@@ -48,6 +48,16 @@ def get_index():
         return f.read()
 
 
+@app.get("/personality-editor", response_class=HTMLResponse)
+@app.get("/editor", response_class=HTMLResponse)
+def get_personality_editor():
+    editor_path = os.path.join(config.BASE_DIR, "personality_editor.html")
+    if os.path.exists(editor_path):
+        with open(editor_path, "r", encoding="utf-8") as f:
+            return f.read()
+    return "<h1>Editor de Personalidades não encontrado.</h1>"
+
+
 @app.get("/api/memory-mode")
 async def get_memory_mode():
     """Retorna o modo de memória ativo no NIB."""
