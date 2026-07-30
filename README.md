@@ -16,9 +16,10 @@
     - **Persistência Imutável (WAL + ChromaDB + GraphRAG)**: Gravação perpétua no diário WAL (`synaptic_journal.jsonl`), ChromaDB e GraphRAG nativo sem decaimento ou esquecimento.
 
 - **🔀 RAG Híbrido & Re-ranking (Vetorial + Relacional)**:
-  - Combina a pontuação de similaridade semântica do Hipocampo ($S_{vec}$) com o grau e os pesos de relacionamento no Grafo do Neocórtex ($S_{graph}$).
+  - Combina a pontuação de similaridade semântica do Hipocampo ($S_{\text{vetor}}$) com o grau e os pesos de relacionamento no Grafo do Neocórtex ($S_{\text{grafo}}$).
   - Ordenação e re-ranking unificado das informações resgatadas:
-    $$S_{hibrido} = (\text{HYBRID\_RAG\_VECTOR\_WEIGHT} \cdot S_{vec}) + (\text{HYBRID\_RAG\_GRAPH\_WEIGHT} \cdot S_{graph})$$
+    $$S_{\text{híbrido}} = (w_{\text{vetor}} \cdot S_{\text{vetor}}) + (w_{\text{grafo}} \cdot S_{\text{grafo}})$$
+    *(onde os pesos $w_{\text{vetor}}$ e $w_{\text{grafo}}$ são definidos pelas constantes `HYBRID_RAG_VECTOR_WEIGHT` e `HYBRID_RAG_GRAPH_WEIGHT` em `config.py`)*
 
 - **🧼 Normalização Canônica de Entidades no GraphRAG**:
   - Etapa inteligente de limpeza e canonização antes da inserção de nós no Neocórtex.
