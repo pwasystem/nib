@@ -108,8 +108,105 @@ class NeuroInformatikBrain:
 
     # --------------------------------------------------
     # --------------------------------------------------
-    # BUSCA EXTERNA EM CAMADAS (ACADÊMICA -> NOTÍCIAS -> TENDÊNCIAS/WEB GERAL)
+    # BUSCA EXTERNA EM CAMADAS (WIKIPEDIA ➔ ACADÊMICO ➔ NOTÍCIAS ➔ TENDÊNCIAS/WEB)
     # --------------------------------------------------
+    def extrair_termo_busca(self, query: str) -> str:
+        """Limpa saudações e frases conversacionais para isolar o termo real de busca."""
+        import re
+        q = query.strip()
+        
+        patterns = [
+            r'(?:busque|pesquise|procure|sobre|termo)\s+(?:por\s+)?["\']?([^"\'.!?\n]+)["\']?',
+        ]
+        for pat in patterns:
+            m = re.search(pat, q, re.IGNORECASE)
+            if m:
+                candidate = m.group(1).strip()
+                cand_clean = re.sub(r'\b(não|nao|está|esta|errado|errada|correto|de verdade|por favor)\b.*$', '', candidate, flags=re.IGNORECASE).strip()
+                if len(cand_clean) >= 2:
+                    return cand_clean
+
+        ruidos = [
+            "olá nib", "ola nib", "falei para você que", "falei para voce que", 
+            "não está correto", "nao esta correto", "pesquise e descubra o que é de verdade",
+            "ainda está errado", "ainda esta errado", "busque", "pesquise", "procure", 
+            "veja a letra da musica", "veja a letra da música", "o que é", "o que e"
+        ]
+        q_clean = q
+        for r in ruidos:
+            q_clean = re.sub(re.escape(r), "", q_clean, flags=re.IGNORECASE)
+        q_clean = q_clean.strip(" ,.!?\"'")
+        return q_clean if len(q_clean) >= 2 else query
+
+    def eh_termo_cientifico(self, query: str) -> bool:
+        """Determina se a consulta refere-se a um conceito/termo técnico-científico."""
+        q_lower = query.lower()
+        palavras_chave_ciencia = [
+            "física", "fisica", "quântica", "quantica", "biologia", "química", "quimica", 
+            "matemática", "matematica", "astronomia", "astrofísica", "astrofisica", "neuro", 
+            "algoritmo", "genética", "genetica", "artigo", "paper", "teorema", "equação", 
+            "equacao", "molécula", "molecula", "relatividade", "quântico", "quantico", 
+            "nanotecnologia", "bactéria", "bacteria", "vírus", "virus", "célula", "celula", 
+            "termodinâmica", "termodinamica", "astrobiologia", "entropia", "genoma"
+        ]
+        for p in palavras_chave_ciencia:
+            if p in q_lower:
+                return True
+        return False
+
+    def buscar_wikipedia(self, query: str) -> list:
+        resultados = []
+        logger.log_pesquisa_web(f"Pesquisa Web (Wikipedia) por: '{query}'")
+        logger.log_busca_wikipedia(f"Pesquisando na Wikipedia por: '{query}'...")
+        
+        # 1. Wikipedia API PT
+        try:
+            url_pt = f"https://pt.wikipedia.org/w/api.php?action=query&list=search&srsearch={urllib.parse.quote(query)}&format=json&utf8=1"
+            resp = requests.get(url_pt, timeout=4).json()
+            search_results = resp.get("query", {}).get("search", [])
+            for item in search_results[:2]:
+                titulo = item.get("title", "")
+                snippet_raw = item.get("snippet", "")
+                snippet = BeautifulSoup(snippet_raw, "html.parser").get_text().strip()
+                if titulo and snippet:
+                    resultados.append(f"[Wikipedia PT] Título: {titulo} | Resumo: {snippet}")
+        except Exception:
+            pass
+
+        # 2. Wikipedia API EN (Fallback para termos em inglês como N.I.B / Black Sabbath)
+        if not resultados:
+            try:
+                url_en = f"https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch={urllib.parse.quote(query)}&format=json&utf8=1"
+                resp = requests.get(url_en, timeout=4).json()
+                search_results = resp.get("query", {}).get("search", [])
+                for item in search_results[:2]:
+                    titulo = item.get("title", "")
+                    snippet_raw = item.get("snippet", "")
+                    snippet = BeautifulSoup(snippet_raw, "html.parser").get_text().strip()
+                    if titulo and snippet:
+                        resultados.append(f"[Wikipedia EN] Título: {titulo} | Resumo: {snippet}")
+            except Exception:
+                pass
+
+        # 3. DuckDuckGo Wikipedia Fallback
+        if not resultados:
+            try:
+                url_ddg_wiki = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote('site:wikipedia.org ' + query)}"
+                headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+                resp = requests.get(url_ddg_wiki, headers=headers, timeout=4)
+                soup = BeautifulSoup(resp.text, 'html.parser')
+                for a in soup.find_all('a', class_='result__snippet', limit=2):
+                    resultados.append(f"[Wikipedia Web]: {a.get_text().strip()}")
+            except Exception:
+                pass
+
+        if resultados:
+            logger.log_busca_wikipedia(f"Encontrados {len(resultados)} artigos na Wikipedia.")
+        else:
+            logger.log_busca_wikipedia("Nenhum resultado encontrado na Wikipedia.")
+
+        return resultados
+
     def buscar_diretorio_academico(self, query: str) -> list:
         resultados = []
         logger.log_busca_academica(f"Pesquisando em repositórios científicos/acadêmicos: '{query}'...")
@@ -194,22 +291,38 @@ class NeuroInformatikBrain:
     def pesquisar_conhecimento_externo(self, query: str, apenas_academico: bool = False) -> str:
         """
         Pesquisa externa em camadas:
-          1. Acadêmica (arXiv / OpenAlex)
-          2. Notícias Recentes
-          3. Tendências e Web Geral
+          1. Wikipedia (Primeiro Lugar para definições e cultura) / Busca Acadêmica (se for termo científico)
+          2. Repositórios Acadêmicos (arXiv / OpenAlex)
+          3. Notícias Recentes
+          4. Tendências e Web Geral
         """
-        logger.log_pesquisa_web(f"Pesquisa externa disparada na web para a consulta: '{query}'")
-        # Camada 1: Busca Acadêmica
-        resultados = self.buscar_diretorio_academico(query)
+        termo_limpo = self.extrair_termo_busca(query)
+        logger.log_pesquisa_web(f"Pesquisa externa disparada na web para a consulta: '{query}' (Termo limpo: '{termo_limpo}')")
         
-        # Camada 2: Busca de Notícias (se a acadêmica não trouxer resultados)
+        resultados = []
+        is_cientifico = self.eh_termo_cientifico(termo_limpo)
+        
+        # Se for termo científico ou for solicitada busca estritamente acadêmica, inicia pela busca acadêmica
+        if is_cientifico or apenas_academico:
+            logger.log_busca_academica(f"Termo científico/acadêmico detectado. Iniciando busca acadêmica: '{termo_limpo}'")
+            resultados = self.buscar_diretorio_academico(termo_limpo)
+
+        # 1. Wikipedia em primeiro lugar para termos gerais, culturais, termos de música, etc.
         if not resultados and not apenas_academico:
-            resultados = self.buscar_noticias(query)
-            
-        # Camada 3: Tendências e Busca Geral na Web (se a busca de notícias não trouxer resultados)
+            resultados = self.buscar_wikipedia(termo_limpo)
+
+        # 2. Busca Acadêmica (se não for termo científico e Wikipedia falhou)
+        if not resultados and not is_cientifico and not apenas_academico:
+            resultados = self.buscar_diretorio_academico(termo_limpo)
+
+        # 3. Busca de Notícias
         if not resultados and not apenas_academico:
-            resultados = self.buscar_tendencias_e_web(query)
-            
+            resultados = self.buscar_noticias(termo_limpo)
+
+        # 4. Tendências e Web Geral (fallback final)
+        if not resultados and not apenas_academico:
+            resultados = self.buscar_tendencias_e_web(termo_limpo)
+
         if not resultados:
             return "Nenhuma informação externa encontrada."
 
@@ -217,7 +330,7 @@ class NeuroInformatikBrain:
         
         # Salva o aprendizado na memória
         id_novo = f"ext_mem_{int(time.time())}"
-        self.memorizar_experiencia(f"Conhecimento pesquisado sobre '{query}': {conteudo}")
+        self.memorizar_experiencia(f"Conhecimento pesquisado sobre '{termo_limpo}': {conteudo}")
         
         return conteudo
 

@@ -74,6 +74,9 @@ def log_busca(msg: str):
 def log_pesquisa_web(msg: str):
     _safe_print(f"{Colors.BRIGHT_CYAN}🌐 [PESQUISA WEB]{Colors.RESET} {msg}")
 
+def log_busca_wikipedia(msg: str):
+    _safe_print(f"{Colors.BRIGHT_MAGENTA}📚 [BUSCA WIKIPEDIA]{Colors.RESET} {msg}")
+
 def log_busca_academica(msg: str):
     _safe_print(f"{Colors.BRIGHT_BLUE}🎓 [BUSCA ACADÊMICA]{Colors.RESET} {msg}")
 

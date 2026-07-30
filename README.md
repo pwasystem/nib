@@ -14,10 +14,12 @@
     - **Persistência Imutável (WAL + ChromaDB + GraphRAG)**: Gravação perpétua no diário WAL (`events_wal.jsonl`), ChromaDB e GraphRAG nativo sem decaimento ou esquecimento.
 
 - **🌐 Busca Externa em Camadas (Cascata de Fallback)**:
-  - Quando a informação está ausente na memória local (Hipocampo e Neocórtex), a IA ativa um fluxo de pesquisa externa em 3 etapas:
-    1. **🎓 1ª Camada - Pesquisa Acadêmica**: Consulta repositórios científicos (arXiv e OpenAlex).
-    2. **📰 2ª Camada - Notícias Recentes**: Acionada se não houver dados acadêmicos, buscando manchetes e artigos de notícias.
-    3. **🔥 3ª Camada - Tendências & Web Geral**: Acionada caso a busca de notícias não traga resultados, pesquisando tendências e web aberta.
+  - Quando a informação está ausente na memória local (Hipocampo e Neocórtex), a IA ativa um fluxo de pesquisa externa em 4 etapas:
+    1. **📚 1ª Camada - Wikipedia (`buscar_wikipedia`)**: Consulta ativada em primeiro lugar para definições gerais, cultura, história, termos e conceitos gerais.
+    2. **🎓 2ª Camada - Pesquisa Acadêmica (`buscar_diretorio_academico`)**: Caso o termo seja identificado como técnico/científico, a busca acadêmica (arXiv e OpenAlex) é priorizada; caso contrário, é acionada como fallback da Wikipedia.
+    3. **📰 3ª Camada - Notícias Recentes (`buscar_noticias`)**: Acionada se não houver dados acadêmicos ou na Wikipedia, buscando manchetes de notícias.
+    4. **🔥 4ª Camada - Tendências & Web Geral (`buscar_tendencias_e_web`)**: Fallback final para dados abertos na web e tendências.
+  - Possui módulo inteligente de extração e limpeza do termo (`extrair_termo_busca`) para remover ruídos da linguagem natural antes de consultar APIs externas.
   - Todo conhecimento adquirido é automaticamente memorizado no NIB.
 
 - **🔍 Detecção de Busca Direta & Correção de Erros**:
@@ -28,7 +30,7 @@
   - Formula pesquisas criativas e investigativas, consulta fontes externas e absorve novos aprendizados de forma contínua.
 
 - **🎨 Sistema de Logs Coloridos no Terminal (`logger_nib.py`)**:
-  - Formatação com códigos ANSI e suporte UTF-8 no console (`[MEMÓRIA HUMANA]`, `[MEMÓRIA PERFEITA]`, `[HIPOCAMPO]`, `[NEOCÓRTEX]`, `[PODA SINÁPTICA]`, `[REFORÇO SINÁPTICO]`, `🌐 [PESQUISA WEB]`, `🎨 [CRIATIVIDADE NIB]`, `🎓 [BUSCA ACADÊMICA]`, `📰 [BUSCA NOTÍCIAS]`, `🔥 [BUSCA TENDÊNCIAS/WEB]`, `[LOG WAL]`).
+  - Formatação com códigos ANSI e suporte UTF-8 no console (`[MEMÓRIA HUMANA]`, `[MEMÓRIA PERFEITA]`, `[HIPOCAMPO]`, `[NEOCÓRTEX]`, `[PODA SINÁPTICA]`, `[REFORÇO SINÁPTICO]`, `🌐 [PESQUISA WEB]`, `📚 [BUSCA WIKIPEDIA]`, `🎓 [BUSCA ACADÊMICA]`, `📰 [BUSCA NOTÍCIAS]`, `🔥 [BUSCA TENDÊNCIAS/WEB]`, `🎨 [CRIATIVIDADE NIB]`, `[LOG WAL]`).
 
 - **🧪 Sistema Límbico (Modelo PAD)**: Simulação emocional com modulação reativa automática ou manual (Prazer, Excitação e Dominância).
 - **🎛️ Córtex Pré-Frontal (Big Five / OCEAN)**: Personalidade adaptável em tempo de execução via sliders (Abertura, Conscienciosidade, Extroversão, Amabilidade e Neuroticismo).
