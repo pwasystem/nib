@@ -208,6 +208,21 @@ async def kill_and_rebirth():
     }
 
 
+@app.get("/api/personality/active")
+async def get_active_personality():
+    """Retorna os dados e os tópicos de interesse da personalidade ativa no momento."""
+    p = nib.active_personality
+    pad = p.get_pad_vectors() if hasattr(p, "get_pad_vectors") else {"p": nib_affective.pleasure, "a": nib_affective.arousal, "d": nib_affective.dominance}
+    return {
+        "status": "success",
+        "name": p.name,
+        "description": p.get_description(),
+        "ocean": p.get_ocean_traits() if hasattr(p, "get_ocean_traits") else {},
+        "pad": pad,
+        "interests": p.get_interests() if hasattr(p, "get_interests") else []
+    }
+
+
 @app.post("/api/toggle-emotion")
 async def toggle_emotion(request: Request):
     data = await request.json()

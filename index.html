@@ -876,6 +876,18 @@
 			container.innerHTML = interestsList.map(t => `<span class="interest-badge">🎯 ${t}</span>`).join('');
 		}
 
+		async function carregarInteressesAtivos() {
+			try {
+				const resp = await fetch('/api/personality/active');
+				const data = await resp.json();
+				if (data.status === 'success' && data.interests) {
+					atualizarInteressesUI(data.interests);
+				}
+			} catch (err) {
+				console.error("Erro ao carregar interesses ativos:", err);
+			}
+		}
+
 		// LÓGICA DE SELEÇÃO DE MODELOS DO OLLAMA
 		const modelSelect = document.getElementById('ollama-model-select');
 
@@ -1194,12 +1206,14 @@
 			carregarModelosOllama();
 			carregarModoMemoria();
 			carregarTemplatesPersonalidade();
+			carregarInteressesAtivos();
 			carregarMetasAprendizado();
 			carregarWebhookConfig();
 		});
 		carregarModoMemoria();
 		carregarModelosOllama();
 		carregarTemplatesPersonalidade();
+		carregarInteressesAtivos();
 		carregarMetasAprendizado();
 		carregarWebhookConfig();
 
