@@ -40,6 +40,7 @@ def generate_info():
 
 
 @app.get("/", response_class=HTMLResponse)
+@app.get("/dashboard", response_class=HTMLResponse)
 def get_index():
     index_path = os.path.join(config.BASE_DIR, "index.html")
     with open(index_path, "r", encoding="utf-8") as f:
@@ -122,6 +123,12 @@ async def get_dashboard_graph():
     graph_data = nib.obter_dados_grafo()
     graph_data["status"] = "success"
     return graph_data
+
+
+@app.get("/api/dashboard/logs")
+async def get_dashboard_logs():
+    """Retorna o histórico recente de logs do terminal para exibição no Dashboard Cognitivo."""
+    return {"status": "success", "logs": logger.get_recent_logs(200)}
 
 
 
@@ -209,6 +216,67 @@ async def set_custom_personality(request: Request):
     }
 
 
+@app.get("/api/personality-templates")
+async def get_personality_templates():
+    """Retorna todos os templates de personalidade e emoção disponíveis (Presets, Zodíaco, Matriz Chinesa)."""
+    return {
+        "status": "success",
+        "templates": PersonalityFactory.list_available_templates()
+    }
+
+
+@app.post("/api/apply-personality-template")
+async def apply_personality_template(request: Request):
+    """
+    Aplica um template de modo de personalidade e ajusta simultaneamente 
+    o perfil OCEAN e o estado emocional (PAD).
+    """
+    data = await request.json()
+    t_type = data.get("type", "preset")
+    
+    template = PersonalityFactory.create_personality(
+        t_type,
+        signo=data.get("signo"),
+        animal=data.get("animal"),
+        elemento=data.get("elemento"),
+        preset_key=data.get("preset_key") or data.get("id"),
+        name=data.get("name")
+    )
+    
+    nib.active_personality = template
+    
+    pad_vectors = template.get_pad_vectors()
+    p_pct = pad_vectors.get("p", 0.2) * 100.0
+    a_pct = pad_vectors.get("a", -0.1) * 100.0
+    d_pct = pad_vectors.get("d", 0.3) * 100.0
+    
+    nib_affective.set_pad_direct(p_pct, a_pct, d_pct)
+    
+    logger.log_nib("PERSONALIDADE", f"Template aplicado: '{template.name}' | {template.get_description()}", logger.Colors.BRIGHT_MAGENTA)
+    logger.log_nib("SISTEMA LÍMBICO", f"Emoções ajustadas: P={pad_vectors.get('p'):+.2f}, A={pad_vectors.get('a'):+.2f}, D={pad_vectors.get('d'):+.2f} ({nib_affective.current_emotion})", logger.Colors.BRIGHT_CYAN)
+    
+    ocean = template.get_ocean_traits()
+    
+    return {
+        "status": "success",
+        "name": template.name,
+        "description": template.get_description(),
+        "ocean": {
+            "o": int(ocean.get("O", 0.8) * 100),
+            "c": int(ocean.get("C", 0.9) * 100),
+            "e": int(ocean.get("E", 0.4) * 100),
+            "a": int(ocean.get("A", 0.7) * 100),
+            "n": int(ocean.get("N", 0.2) * 100),
+        },
+        "pad": {
+            "p": int(pad_vectors.get("p", 0.2) * 100),
+            "a": int(pad_vectors.get("a", -0.1) * 100),
+            "d": int(pad_vectors.get("d", 0.3) * 100),
+            "current_emotion": nib_affective.current_emotion
+        }
+    }
+
+
 @app.post("/api/set-emotion")
 async def set_emotion(request: Request):
     data = await request.json()
@@ -249,12 +317,14 @@ async def get_ollama_models():
 
 @app.post("/api/set-ollama-model")
 async def set_ollama_model(request: Request):
-    """Altera o modelo ativo do Ollama em tempo de execução."""
+    """Altera o modelo ativo do Ollama em tempo de execução e o memoriza no disco."""
     data = await request.json()
     novo_modelo = data.get("model")
     if novo_modelo:
         config.OLLAMA_MODEL = novo_modelo
+        config.save_selected_model(novo_modelo)
         nib.model_name = novo_modelo
+        logger.log_nib("OLLAMA", f"Modelo alterado e memorizado: '{novo_modelo}'", logger.Colors.BRIGHT_GREEN)
         return {"status": "success", "current": config.OLLAMA_MODEL}
     return {"status": "error", "message": "Modelo inválido"}
 
@@ -277,10 +347,27 @@ async def chat_stream(prompt: str):
         instrucao_humor = nib_affective.get_mood_instruction() if nib_affective.emotion_enabled else "Seu módulo emocional está desativado: mantenha um tom neutro e imparcial."
         temp_dinamica = nib_affective.get_temperature_modifier() if nib_affective.emotion_enabled else 0.4
 
+        ocean_traits = nib.active_personality.get_ocean_traits() if hasattr(nib.active_personality, "get_ocean_traits") else {}
+        ocean_str = ", ".join([f"{k}:{int(v*100)}%" for k, v in ocean_traits.items()])
+
+        autoconsciencia = (
+            f"=== AUTO-CONSCIÊNCIA DO NIB (SUAS CAPACIDADES E CONFIGURAÇÕES REAIS) ===\n"
+            f"• Identidade: NIB (Neuro-Informatik Brain)\n"
+            f"• Modelo Ativo: {config.OLLAMA_MODEL}\n"
+            f"• Arquitetura de Memória: Modo {'Humana (Sináptica)' if nib.memory_mode == 'human' else 'Perfeita (Perpétua)'}\n"
+            f"• Módulo de Personalidade (Big Five OCEAN): {'ATIVADO' if nib.personality_enabled else 'DESATIVADO'} | Arquétipo: '{nib.active_personality.name}' | Traços: [{ocean_str}]\n"
+            f"• Módulo Emocional (Sistema Límbico PAD): {'ATIVADO' if nib_affective.emotion_enabled else 'DESATIVADO'} | Modo: {'Automático' if nib_affective.auto_mode else 'Manual'} | Humor: '{nib_affective.current_emotion}' | Vetores PAD: Prazer(P)={nib_affective.pleasure:+.2f}, Excitação(A)={nib_affective.arousal:+.2f}, Dominância(D)={nib_affective.dominance:+.2f}\n"
+            f"• Aprendizado Autônomo & Curiosidade: {'ATIVADO' if nib.learning_enabled else 'DESATIVADO'}\n"
+            f"=========================================================================\n"
+            f"Você possui total auto-consciência de seu funcionamento interno. Se o usuário perguntar sobre suas configurações, seu estado emocional, sua personalidade ou suas capacidades, informe seus parâmetros reais acima com precisão e clareza."
+        )
+
         sys_prompt = (
-            f"Você é o NIB (Neuro-Informatik Brain). "
-            f"{instrucao_personalidade} "
-            f"{instrucao_humor} "
+            f"Você é o NIB (Neuro-Informatik Brain).\n\n"
+            f"{autoconsciencia}\n\n"
+            f"DIRETRIZES DE COMPORTAMENTO E ATITUDE:\n"
+            f"• {instrucao_personalidade}\n"
+            f"• {instrucao_humor}\n\n"
             f"Responda diretamente ao usuário em texto fluído, legível e bem formatado usando Markdown (títulos, tópicos, negrito e blocos de código quando apropriado). "
             f"IMPORTANTE: NUNCA responda em formato JSON bruto e NUNCA envolva sua mensagem em chaves JSON como {{'resposta': ...}} ou estruturas de objeto."
         )

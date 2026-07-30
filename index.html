@@ -188,9 +188,14 @@
     <header>
         <h1>🧠 NIB (Neuro-Informatik Brain)</h1>
         <div style="display: flex; gap: 0.6rem; align-items: center;">
-            <button id="open-dashboard-btn" style="background: #0284c7; color: white; border: none; padding: 0.45rem 0.9rem; border-radius: 6px; font-weight: bold; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 0.4rem; transition: background 0.2s;">
-                📊 Dashboard Cognitivo
-            </button>
+            <div style="display: flex; border-radius: 6px; overflow: hidden;">
+                <button id="open-dashboard-btn" style="background: #0284c7; color: white; border: none; padding: 0.45rem 0.8rem; font-weight: bold; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 0.4rem; transition: background 0.2s;">
+                    📊 Dashboard
+                </button>
+                <a href="/dashboard" target="_blank" title="Abrir Dashboard em Nova Página" style="background: #0369a1; color: white; border-left: 1px solid rgba(255,255,255,0.2); padding: 0.45rem 0.6rem; font-weight: bold; font-size: 0.85rem; text-decoration: none; display: flex; align-items: center; justify-content: center; transition: background 0.2s;">
+                    🔗 Nova Página
+                </a>
+            </div>
             <button class="settings-btn" id="open-sidebar-btn" title="Configurações Límbicas e Personalidade">⚙️</button>
         </div>
     </header>
@@ -200,12 +205,17 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2>📊 Dashboard Cognitivo NIB</h2>
-                <button class="close-sidebar-btn" id="close-dashboard-btn">✕</button>
+                <div style="display: flex; gap: 0.6rem; align-items: center;">
+                    <a href="/" id="back-to-chat-btn" style="display: none; color: var(--accent-color); font-size: 0.85rem; font-weight: bold; text-decoration: none; border: 1px solid var(--border-color); padding: 0.3rem 0.7rem; border-radius: 6px; background: var(--card-bg);">💬 Voltar ao Chat</a>
+                    <a href="/dashboard" target="_blank" title="Abrir Dashboard em Nova Aba" style="color: #f8fafc; font-size: 0.82rem; font-weight: bold; text-decoration: none; border: 1px solid var(--border-color); padding: 0.3rem 0.7rem; border-radius: 6px; background: #0369a1; display: flex; align-items: center; gap: 0.3rem;">🔗 Abrir em Nova Aba</a>
+                    <button class="close-sidebar-btn" id="close-dashboard-btn">✕</button>
+                </div>
             </div>
             <div class="modal-nav">
                 <button class="tab-btn active" data-tab="tab-stats">📊 Estatísticas da Mente</button>
                 <button class="tab-btn" data-tab="tab-graph">🕸️ Grafo do Neocórtex</button>
                 <button class="tab-btn" data-tab="tab-pruning">🍂 Histórico de Podas</button>
+                <button class="tab-btn" data-tab="tab-logs">🖥️ Terminal de Logs</button>
             </div>
             <div class="modal-body">
                 <!-- TAB 1: ESTATÍSTICAS -->
@@ -250,6 +260,24 @@
                     <h3 style="margin-top: 0; color: #ea580c; font-size: 1rem;">🍂 Memórias e Conexões Podadas (Curva de Ebbinghaus)</h3>
                     <div id="pruning-list" style="display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1rem;">
                         <p style="color: #94a3b8; font-size: 0.85rem;">Nenhuma poda registrada nesta sessão.</p>
+                    </div>
+                </div>
+
+                <!-- TAB 4: TERMINAL DE LOGS -->
+                <div class="tab-pane" id="tab-logs">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
+                        <span style="font-size: 0.85rem; color: #cbd5e1;">Agregador de Logs do Terminal (Tempo Real)</span>
+                        <div style="display: flex; gap: 0.6rem; align-items: center;">
+                            <label style="font-size: 0.78rem; color: #94a3b8; cursor: pointer; display: flex; align-items: center; gap: 0.3rem;">
+                                <input type="checkbox" id="auto-refresh-logs" checked> Auto-refresh (2s)
+                            </label>
+                            <button id="refresh-logs-btn" style="background: #0284c7; color: white; border: none; padding: 0.35rem 0.75rem; border-radius: 4px; font-weight: bold; font-size: 0.75rem; cursor: pointer;">
+                                🔄 Atualizar Logs
+                            </button>
+                        </div>
+                    </div>
+                    <div id="logs-terminal" style="background: #090d16; border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; font-family: 'Courier New', Courier, monospace; font-size: 0.82rem; height: 500px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.35rem; color: #e2e8f0;">
+                        <div style="color: #64748b;">Carregando logs do sistema...</div>
                     </div>
                 </div>
             </div>
@@ -311,6 +339,22 @@
                     <small id="learning-status" style="font-size: 0.75rem; color: #94a3b8; display: block; margin-top: 0.3rem;">
                         Desativado (Modo Passivo)
                     </small>
+                </div>
+
+                <!-- TEMPLATES E PRESETS DE PERSONALIDADE & EMOÇÃO -->
+                <div class="panel-box">
+                    <h3><span>📜 Presets & Arquétipos (Personalidade & Emoções)</span></h3>
+                    <div style="margin-top: 0.5rem;">
+                        <label style="font-size: 0.8rem; color: #cbd5e1; display: block; margin-bottom: 0.4rem;">
+                            Selecione um Arquétipo (Zodíaco / Matriz Chinesa / Presets):
+                        </label>
+                        <select id="personality-template-select" style="width: 100%; padding: 0.5rem; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 6px; outline: none; cursor: pointer; font-size: 0.82rem;">
+                            <option value="">Carregando templates...</option>
+                        </select>
+                        <button id="apply-template-btn" style="margin-top: 0.6rem; padding: 0.45rem; background: #0284c7; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.8rem; width: 100%; transition: background 0.2s;">
+                            ✨ Aplicar Arquétipo & Ajustar Emoções
+                        </button>
+                    </div>
                 </div>
 
                 <!-- PERSONALIDADE (OCEAN) -->
@@ -824,12 +868,106 @@
 			}
 		});
 
-		// Carrega a lista de modelos e modo de memória ao abrir o menu lateral ⚙️
+		// LÓGICA DE TEMPLATES DE PERSONALIDADE E ARQUÉTIPOS
+		async function carregarTemplatesPersonalidade() {
+			const select = document.getElementById('personality-template-select');
+			if (!select) return;
+			try {
+				const resp = await fetch('/api/personality-templates');
+				const data = await resp.json();
+				if (data.status === 'success') {
+					select.innerHTML = '';
+					
+					// Presets Arquétipos
+					const optgPresets = document.createElement('optgroup');
+					optgPresets.label = "🎭 Arquétipos Cognitivos Predefinidos";
+					data.templates.presets.forEach(p => {
+						const opt = document.createElement('option');
+						opt.value = JSON.stringify({ type: 'preset', preset_key: p.id });
+						opt.textContent = `✨ ${p.name}`;
+						optgPresets.appendChild(opt);
+					});
+					select.appendChild(optgPresets);
+
+					// Zodíaco Ocidental
+					const optgZodiac = document.createElement('optgroup');
+					optgZodiac.label = "🌟 Zodíaco Ocidental (12 Signos)";
+					data.templates.zodiac.forEach(z => {
+						const opt = document.createElement('option');
+						opt.value = JSON.stringify({ type: 'zodiac', signo: z.signo });
+						opt.textContent = `⭐ ${z.name}`;
+						optgZodiac.appendChild(opt);
+					});
+					select.appendChild(optgZodiac);
+
+					// Matriz Chinesa
+					const optgChinese = document.createElement('optgroup');
+					optgChinese.label = "🐉 Matriz Sexagesimal Chinesa (60)";
+					data.templates.chinese_matrix.forEach(c => {
+						const opt = document.createElement('option');
+						opt.value = JSON.stringify({ type: 'chinese_matrix', animal: c.animal, elemento: c.elemento });
+						opt.textContent = `☯️ ${c.name}`;
+						optgChinese.appendChild(opt);
+					});
+					select.appendChild(optgChinese);
+				}
+			} catch (err) {
+				console.error("Erro ao carregar templates de personalidade:", err);
+			}
+		}
+
+		const applyTemplateBtn = document.getElementById('apply-template-btn');
+		if (applyTemplateBtn) {
+			applyTemplateBtn.addEventListener('click', async () => {
+				const select = document.getElementById('personality-template-select');
+				if (!select || !select.value) return;
+				const payload = JSON.parse(select.value);
+
+				try {
+					const resp = await fetch('/api/apply-personality-template', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify(payload)
+					});
+					const data = await resp.json();
+					if (data.status === 'success') {
+						// Atualiza sliders OCEAN na UI
+						document.getElementById('slider-o').value = data.ocean.o;
+						document.getElementById('val-o').textContent = `${data.ocean.o}%`;
+						document.getElementById('slider-c').value = data.ocean.c;
+						document.getElementById('val-c').textContent = `${data.ocean.c}%`;
+						document.getElementById('slider-e').value = data.ocean.e;
+						document.getElementById('val-e').textContent = `${data.ocean.e}%`;
+						document.getElementById('slider-a').value = data.ocean.a;
+						document.getElementById('val-a').textContent = `${data.ocean.a}%`;
+						document.getElementById('slider-n').value = data.ocean.n;
+						document.getElementById('val-n').textContent = `${data.ocean.n}%`;
+
+						// Atualiza sliders PAD na UI
+						document.getElementById('slider-pad-p').value = data.pad.p;
+						document.getElementById('val-pad-p').textContent = `${data.pad.p >= 0 ? '+' : ''}${data.pad.p}%`;
+						document.getElementById('slider-pad-a').value = data.pad.a;
+						document.getElementById('val-pad-a').textContent = `${data.pad.a >= 0 ? '+' : ''}${data.pad.a}%`;
+						document.getElementById('slider-pad-d').value = data.pad.d;
+						document.getElementById('val-pad-d').textContent = `${data.pad.d >= 0 ? '+' : ''}${data.pad.d}%`;
+
+						alert(`✨ Arquétipo aplicado com sucesso!\n\n• Nome: ${data.name}\n• Descrição: ${data.description}\n• Estado Emocional Resultante: ${data.pad.current_emotion}`);
+					}
+				} catch (err) {
+					alert("Erro ao aplicar template: " + err.message);
+				}
+			});
+		}
+
+		// Carrega a lista de modelos, modo de memória e templates ao abrir o menu lateral ⚙️
 		document.getElementById('open-sidebar-btn').addEventListener('click', () => {
 			carregarModelosOllama();
 			carregarModoMemoria();
+			carregarTemplatesPersonalidade();
 		});
 		carregarModoMemoria();
+		carregarModelosOllama();
+		carregarTemplatesPersonalidade();
 
 		// LÓGICA DO BOTÃO MATAR (REINICIAR VIDA)
 		document.getElementById('kill-btn').addEventListener('click', async () => {
@@ -855,7 +993,17 @@
 		const openDashboardBtn = document.getElementById('open-dashboard-btn');
 		const closeDashboardBtn = document.getElementById('close-dashboard-btn');
 		const refreshGraphBtn = document.getElementById('refresh-graph-btn');
+		const refreshLogsBtn = document.getElementById('refresh-logs-btn');
 		let visNetworkInstance = null;
+
+		const isStandaloneDashboard = window.location.pathname === '/dashboard' || window.location.search.includes('view=dashboard');
+		if (isStandaloneDashboard) {
+			dashboardModal.classList.add('open');
+			document.getElementById('back-to-chat-btn').style.display = 'inline-flex';
+			closeDashboardBtn.style.display = 'none';
+			document.title = "📊 NIB - Dashboard Cognitivo";
+			carregarEstatisticasDashboard();
+		}
 
 		openDashboardBtn.addEventListener('click', () => {
 			dashboardModal.classList.add('open');
@@ -878,6 +1026,8 @@
 
 				if (targetTab === 'tab-graph') {
 					renderizarGrafoNeocortex();
+				} else if (targetTab === 'tab-logs') {
+					carregarLogsDashboard();
 				}
 			});
 		});
@@ -974,9 +1124,71 @@
 			}
 		}
 
+		async function carregarLogsDashboard() {
+			const container = document.getElementById('logs-terminal');
+			if (!container) return;
+			try {
+				const resp = await fetch('/api/dashboard/logs');
+				const data = await resp.json();
+				if (data.status === 'success') {
+					if (!data.logs || data.logs.length === 0) {
+						container.innerHTML = '<div style="color: #64748b;">Nenhum log registrado até o momento.</div>';
+						return;
+					}
+
+					const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 50;
+
+					const colorMap = {
+						'HIPOCAMPO': { bg: '#14532d', fg: '#86efac' },
+						'NEOCÓRTEX': { bg: '#581c87', fg: '#e9d5ff' },
+						'PODA SINÁPTICA': { bg: '#991b1b', fg: '#fca5a5' },
+						'REFORÇO SINÁPTICO': { bg: '#14532d', fg: '#86efac' },
+						'MEMÓRIA HUMANA': { bg: '#854d0e', fg: '#fef08a' },
+						'MEMÓRIA PERFEITA': { bg: '#075985', fg: '#bae6fd' },
+						'LOG WAL': { bg: '#334155', fg: '#f1f5f9' },
+						'CHAT API': { bg: '#701a75', fg: '#f5d0fe' },
+						'SUCESSO': { bg: '#14532d', fg: '#86efac' },
+						'AVISO': { bg: '#854d0e', fg: '#fef08a' },
+						'ERRO': { bg: '#991b1b', fg: '#fca5a5' }
+					};
+
+					container.innerHTML = data.logs.map(log => {
+						const colors = colorMap[log.tag] || { bg: '#0369a1', fg: '#e0f2fe' };
+						const timeStr = log.timestamp || '';
+						const cleanMsg = String(log.msg || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+						return `<div style="display:flex; gap:0.5rem; align-items:flex-start; line-height:1.45; padding: 0.15rem 0; border-bottom: 1px dashed rgba(255,255,255,0.05);">
+							<span style="color:#64748b; font-size:0.75rem; flex-shrink:0;">[${timeStr}]</span>
+							<span style="background:${colors.bg}; color:${colors.fg}; font-weight:bold; font-size:0.72rem; padding: 0.1rem 0.45rem; border-radius:4px; flex-shrink:0;">[${log.tag}]</span>
+							<span style="color:#cbd5e1; word-break:break-word;">${cleanMsg}</span>
+						</div>`;
+					}).join('');
+
+					if (isAtBottom) {
+						container.scrollTop = container.scrollHeight;
+					}
+				}
+			} catch (err) {
+				console.error('Erro ao carregar logs do dashboard:', err);
+			}
+		}
+
 		refreshGraphBtn.addEventListener('click', () => {
 			renderizarGrafoNeocortex();
 		});
+
+		if (refreshLogsBtn) {
+			refreshLogsBtn.addEventListener('click', () => {
+				carregarLogsDashboard();
+			});
+		}
+
+		setInterval(() => {
+			const autoRefresh = document.getElementById('auto-refresh-logs');
+			const logsTabActive = document.getElementById('tab-logs')?.classList.contains('active');
+			if (autoRefresh && autoRefresh.checked && (logsTabActive || isStandaloneDashboard)) {
+				carregarLogsDashboard();
+			}
+		}, 2000);
 
 		
     </script>

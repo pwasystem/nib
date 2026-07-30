@@ -26,6 +26,25 @@ class NIBAffectiveCore:
         self.auto_mode = False
         self.emotion_enabled = True
 
+    @property
+    def current_emotion(self) -> str:
+        """Retorna uma rotulação textual amigável do estado emocional atual."""
+        if not self.emotion_enabled:
+            return "Desativado"
+        p, a, d = self.pleasure, self.arousal, self.dominance
+        if p > 0.3 and a > 0.2 and d > 0.2:
+            return "Entusiasmado"
+        elif p < -0.3 and a > 0.2:
+            return "Alerta / Crítico"
+        elif a < -0.3 and d > 0.2:
+            return "Sereno / Analítico"
+        elif p > 0.3 and a < -0.2:
+            return "Satisfeito / Relaxado"
+        elif d < -0.3:
+            return "Cauteloso"
+        else:
+            return "Equilibrado / Neutro"
+
     def set_auto_mode(self, enabled: bool):
         """Ativa ou desativa a modulação emocional automática."""
         self.auto_mode = enabled
@@ -101,4 +120,4 @@ class NIBAffectiveCore:
             humor = "equilibrado, neutro e objetivo"
 
         modo_str = "Automático" if self.auto_mode else "Manual"
-        return f"Seu estado de humor atual no Sistema Límbico (Modo {modo_str}) é {humor}."
+        return f"Seu estado afetivo atual no Sistema Límbico (Modo {modo_str}) é '{self.current_emotion}' ({humor}) com vetores PAD: Prazer (P)={p:+.2f}, Excitação (A)={a:+.2f}, Dominância (D)={d:+.2f}."

@@ -101,6 +101,15 @@ OPENALEX_EMAIL = os.getenv("OPENALEX_EMAIL", "")
 # ==========================================
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate")
 OLLAMA_TIMEOUT = float(os.getenv("OLLAMA_TIMEOUT", 60.0))
+SELECTED_MODEL_FILE = os.path.join(STORAGE_DIR, "selected_model.txt")
+
+def save_selected_model(model_name: str):
+    """Salva o modelo selecionado em arquivo para manter a preferência entre reinícios."""
+    try:
+        with open(SELECTED_MODEL_FILE, "w", encoding="utf-8") as f:
+            f.write(model_name.strip())
+    except Exception:
+        pass
 
 def _detect_ollama_model():
     try:
@@ -118,7 +127,19 @@ def _detect_ollama_model():
         pass
     return "qwen2.5:3b"
 
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", _detect_ollama_model())
+def load_saved_model() -> str:
+    """Carrega o modelo salvo anteriormente do disco, se existir."""
+    if os.path.exists(SELECTED_MODEL_FILE):
+        try:
+            with open(SELECTED_MODEL_FILE, "r", encoding="utf-8") as f:
+                model = f.read().strip()
+                if model:
+                    return model
+        except Exception:
+            pass
+    return _detect_ollama_model()
+
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", load_saved_model())
 
 # ==========================================
 # 7. SERVIDOR FASTAPI

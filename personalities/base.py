@@ -21,7 +21,8 @@ class BasePersonalityTemplate(ABC):
     def build_system_instruction(self) -> str:
         """Converte automaticamente os valores OCEAN em instruções para o Ollama."""
         ocean = self.get_ocean_traits()
-        instructions = [f"Seu perfil de personalidade é baseado em '{self.name}': {self.get_description()}"]
+        o, c, e, a, n = [int(ocean.get(k, 0.5) * 100) for k in ["O", "C", "E", "A", "N"]]
+        instructions = [f"Seu perfil de personalidade é baseado em '{self.name}': {self.get_description()} (Traços Big Five: O:{o}%, C:{c}%, E:{e}%, A:{a}%, N:{n}%)."]
 
         # Conscienciosidade (C)
         if ocean.get("C", 0.5) >= 0.85:
@@ -46,3 +47,24 @@ class BasePersonalityTemplate(ABC):
             instructions.append("Explore analogias ricas, abstrações e conexões conceituais amplas.")
 
         return " ".join(instructions)
+
+    def get_pad_vectors(self) -> dict:
+        """
+        Retorna os vetores PAD (Prazer, Excitação, Dominância) de -1.0 a +1.0
+        correspondentes a este template de personalidade.
+        """
+        if hasattr(self, "pad") and isinstance(self.pad, dict):
+            return self.pad
+            
+        ocean = self.get_ocean_traits()
+        o = ocean.get("O", 0.5)
+        c = ocean.get("C", 0.5)
+        e = ocean.get("E", 0.5)
+        a = ocean.get("A", 0.5)
+        n = ocean.get("N", 0.5)
+        
+        p = round(max(-1.0, min(1.0, (a * 0.6 + o * 0.4 - n * 0.5))), 2)
+        ar = round(max(-1.0, min(1.0, (e * 0.7 + n * 0.3 - c * 0.3))), 2)
+        d = round(max(-1.0, min(1.0, (c * 0.6 + e * 0.4 - a * 0.3))), 2)
+        
+        return {"p": p, "a": ar, "d": d}

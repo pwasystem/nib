@@ -28,17 +28,21 @@
   - Quando a informação está ausente na memória local (Hipocampo/Neocórtex), aciona uma pesquisa em 4 etapas (Wikipedia ➔ Acadêmica ➔ Notícias ➔ Tendências/Web).
   - Conteúdos raspados da web passam por um processo prévio de **síntese e despoluição via LLM** (`resumir_conhecimento_externo`), extraindo apenas fatos limpos antes da indexação no ChromaDB.
 
-- **📊 Dashboard Cognitivo & Visualizador de Grafo**:
-  - Interface visual interativa integrada no `index.html` com 3 abas:
-    - **📊 Estatísticas da Mente**: Métricas de memórias episódicas, nós/arestas no Neocórtex, força sináptica média e capacidade de memória de trabalho.
-    - **🕸️ Grafo do Neocórtex**: Visualização física interativa da rede de conhecimento via `Vis.js Network` (com física de força, drag-and-drop e zoom).
-    - **🍂 Histórico de Podas**: Diário e linha do tempo de memórias e conexões podadas pela curva de Ebbinghaus.
+- **🎭 Sistema Extensível de Templates de Personalidade & Emoção (`personalities/templates/`)**:
+  - Modula simultaneamente a personalidade **Big Five (OCEAN)** e o estado de afeto **PAD (Prazer, Excitação, Dominância)**.
+  - **🌟 Zodíaco Ocidental**: 12 Signos (Áries, Touro, Gêmeos, Câncer, Leão, Virgem, Libra, Escorpião, Sagitário, Capricórnio, Aquário, Peixes).
+  - **🐉 Matriz Sexagesimal Chinesa**: 60 Combinações de 12 Animais $\times$ 5 Elementos (Madeira, Fogo, Terra, Metal, Água).
+  - **🎭 Presets Arquétipos Cognitivos**: Presets predefinidos (*Mentor Estóico*, *Cientista Entusiasmado*, *Auditor Crítico*, *Poeta Empático*).
 
-- **🔒 Configuração Avançada & Segurança de Segredos**:
-  - Loader inteligente (`config.py`) com carregamento dinâmico e fallbacks seguros de variáveis de ambiente (`.env` / `.env.example`) e hiperparâmetros cognitivos (`config.yaml`).
+- **🪞 Auto-Consciência de Estado & Parâmetros**:
+  - Injeção dinâmica no prompt do sistema da auto-consciência total do NIB quanto ao seu modelo Ollama ativo, modo de memória, percentuais numéricos de Big Five (OCEAN), vetores emocionais PAD e aprendizado autônomo.
 
-- **⚡ Servidor FastAPI 100% Assíncrono (`httpx`)**:
-  - Gerador de streaming de respostas no `/api/chat` usando `httpx.AsyncClient` com I/O assíncrono não-bloqueante no Event Loop.
+- **📊 Dashboard Cognitivo, Visualizador de Grafo & Agregador de Logs**:
+  - **Página Independente (`/dashboard`)**: Acesso via modal ou em aba/janela exclusiva com o botão *"🔗 Nova Página"*.
+  - **🖥️ Terminal de Logs em Tempo Real**: Agregador e visualizador de logs do terminal em tempo real com auto-refresh (2s), categorização visual de tags (`[HIPOCAMPO]`, `[NEOCÓRTEX]`, `[PODA SINÁPTICA]`, `[MEMÓRIA HUMANA]`, etc.) e auto-scroll.
+
+- **💾 Persistência de Preferências**:
+  - Memorização persistente do modelo Ollama selecionado em disco (`nib_storage/selected_model.txt`).
 
 ---
 
@@ -75,6 +79,10 @@ python server_nib.py
 ```text
 http://127.0.0.1:8000
 ```
+Ou acesse o Dashboard Cognitivo em tela cheia:
+```text
+http://127.0.0.1:8000/dashboard
+```
 
 ---
 
@@ -83,8 +91,12 @@ http://127.0.0.1:8000
 | Método | Endpoint | Descrição |
 |---|---|---|
 | `GET` | `/api/chat` | Endpoint principal de chat com streaming SSE não-bloqueante |
+| `GET` | `/dashboard` | Interface do Dashboard Cognitivo exibida como página inteira |
 | `GET` | `/api/dashboard/stats` | Retorna estatísticas de memória, força sináptica, histórico de podas e estados |
 | `GET` | `/api/dashboard/graph` | Retorna nós e arestas do Neocórtex formatados para o visualizador de rede |
+| `GET` | `/api/dashboard/logs` | Retorna o histórico recente de logs do terminal para agregação no Dashboard |
+| `GET` | `/api/personality-templates` | Lista todos os templates de personalidade/emoção (Presets, Zodíaco, Matriz Chinesa) |
+| `POST` | `/api/apply-personality-template` | Aplica um template reconfigurando simultaneamente OCEAN e vetores PAD |
 | `GET` | `/api/working-memory` | Retorna as mensagens ativas na Memória de Trabalho (curto prazo) |
 | `POST` | `/api/clear-working-memory` | Esvazia o buffer de curto prazo da sessão |
 | `GET` | `/api/memory-mode` | Retorna o modo de memória ativo (`human` ou `perfect`) |
@@ -94,7 +106,7 @@ http://127.0.0.1:8000
 | `POST` | `/api/set-custom-personality` | Ajusta os sliders OCEAN em tempo real |
 | `POST` | `/api/prune-memory` | Executa manualmente a poda sináptica no Modo Humano |
 | `GET` | `/api/ollama-models` | Lista assincronamente os modelos instalados no Ollama local |
-| `POST` | `/api/set-ollama-model` | Altera o modelo ativo do Ollama em tempo de execução |
+| `POST` | `/api/set-ollama-model` | Altera e memoriza o modelo ativo do Ollama |
 | `POST` | `/api/kill-and-rebirth` | Limpa toda a memória do NIB e inicia um novo ciclo de vida |
 
 ---
