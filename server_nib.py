@@ -258,10 +258,12 @@ async def chat_stream(prompt: str):
             nib.memorizar_experiencia(f"Usuário: '{prompt}' | NIB: '{resposta_completa}'")
         
         if descoberta_autonoma:
+            conceito_nome = descoberta_autonoma.get("conceito") or descoberta_autonoma.get("tema", "Criatividade Autônoma")
             evento_curiosidade = json.dumps({
                 "curiosidade": True,
-                "conceito": descoberta_autonoma["conceito"],
-                "texto": descoberta_autonoma["descoberta"]
+                "tipo": descoberta_autonoma.get("tipo", "criatividade"),
+                "conceito": conceito_nome,
+                "texto": descoberta_autonoma.get("descoberta", "")
             })
             yield f"data: {evento_curiosidade}\n\n"
 

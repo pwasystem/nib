@@ -107,11 +107,12 @@ class NeuroInformatikBrain:
         self._salvar_neocortex()
 
     # --------------------------------------------------
-    # BUSCA EXTERNA (ACADÊMICA E WEB)
+    # --------------------------------------------------
+    # BUSCA EXTERNA EM CAMADAS (ACADÊMICA -> NOTÍCIAS -> TENDÊNCIAS/WEB GERAL)
     # --------------------------------------------------
     def buscar_diretorio_academico(self, query: str) -> list:
         resultados = []
-        logger.log_busca(f"Pesquisando em repositórios científicos/acadêmicos: '{query}'...")
+        logger.log_busca_academica(f"Pesquisando em repositórios científicos/acadêmicos: '{query}'...")
         
         # 1. arXiv API
         try:
@@ -139,27 +140,72 @@ class NeuroInformatikBrain:
             except Exception:
                 pass
 
+        if resultados:
+            logger.log_busca_academica(f"Encontrados {len(resultados)} resultados acadêmicos.")
+        else:
+            logger.log_busca_academica("Nenhum dado acadêmico encontrado.")
+
         return resultados
 
-    def buscar_web_convencional(self, query: str) -> list:
-        logger.log_busca(f"Fallback ativado. Pesquisando na web: '{query}'...")
+    def buscar_noticias(self, query: str) -> list:
         resultados = []
+        logger.log_busca_noticias(f"Buscando manchetes e notícias sobre: '{query}'...")
         try:
-            url_ddg = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(query)}"
+            url_news = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(query + ' noticias news')}"
             headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
-            resp = requests.get(url_ddg, headers=headers, timeout=5)
+            resp = requests.get(url_news, headers=headers, timeout=5)
             soup = BeautifulSoup(resp.text, 'html.parser')
             
             for a in soup.find_all('a', class_='result__snippet', limit=2):
-                resultados.append(f"[Web Result]: {a.get_text().strip()}")
+                resultados.append(f"[Notícia]: {a.get_text().strip()}")
         except Exception:
             pass
+
+        if resultados:
+            logger.log_busca_noticias(f"Encontradas {len(resultados)} notícias relativas.")
+        else:
+            logger.log_busca_noticias("Nenhuma notícia encontrada.")
+
+        return resultados
+
+    def buscar_tendencias_e_web(self, query: str) -> list:
+        resultados = []
+        logger.log_busca_tendencias(f"Buscando tendências e informações gerais na web: '{query}'...")
+        try:
+            url_web = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(query)}"
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+            resp = requests.get(url_web, headers=headers, timeout=5)
+            soup = BeautifulSoup(resp.text, 'html.parser')
+            
+            for a in soup.find_all('a', class_='result__snippet', limit=2):
+                resultados.append(f"[Tendências/Web]: {a.get_text().strip()}")
+        except Exception:
+            pass
+
+        if resultados:
+            logger.log_busca_tendencias(f"Encontrados {len(resultados)} resultados na web/tendências.")
+        else:
+            logger.log_busca_tendencias("Nenhuma tendência ou resultado web encontrado.")
+
         return resultados
 
     def pesquisar_conhecimento_externo(self, query: str, apenas_academico: bool = False) -> str:
+        """
+        Pesquisa externa em camadas:
+          1. Acadêmica (arXiv / OpenAlex)
+          2. Notícias Recentes
+          3. Tendências e Web Geral
+        """
+        # Camada 1: Busca Acadêmica
         resultados = self.buscar_diretorio_academico(query)
+        
+        # Camada 2: Busca de Notícias (se a acadêmica não trouxer resultados)
         if not resultados and not apenas_academico:
-            resultados = self.buscar_web_convencional(query)
+            resultados = self.buscar_noticias(query)
+            
+        # Camada 3: Tendências e Busca Geral na Web (se a busca de notícias não trouxer resultados)
+        if not resultados and not apenas_academico:
+            resultados = self.buscar_tendencias_e_web(query)
             
         if not resultados:
             return "Nenhuma informação externa encontrada."
@@ -351,17 +397,11 @@ class NeuroInformatikBrain:
         if self.memory_mode == "human":
             self._salvar_neocortex()
 
-        # 3. Tratamento de Lacuna de Conhecimento quando nada for encontrado
+        # 3. Tratamento de Lacuna de Conhecimento quando nada for encontrado na memória local
         if not contexto or len("\n".join(contexto).strip()) < 15:
-            if self.memory_mode == "human":
-                logger.log_human("Nenhuma memória local encontrada. Buscando em repositórios científicos/acadêmicos...")
-                conhecimento = self.pesquisar_conhecimento_externo(consulta, apenas_academico=True)
-                if conhecimento and "Nenhuma informação" not in conhecimento:
-                    contexto.append(f"[Conhecimento Acadêmico Adquirido]: {conhecimento}")
-            else:
-                logger.log_perfect("Informação ausente na memória local. Disparando pesquisa externa (Acadêmica + Web)...")
-                conhecimento = self.pesquisar_conhecimento_externo(consulta, apenas_academico=False)
-                if conhecimento:
-                    contexto.append(f"[Conhecimento Externo Adquirido]: {conhecimento}")
+            logger.log_nib("SISTEMA NIB", "Informação ausente na memória local. Disparando pesquisa externa em camadas (Acadêmica ➔ Notícias ➔ Tendências/Web)...", logger.Colors.BRIGHT_YELLOW)
+            conhecimento = self.pesquisar_conhecimento_externo(consulta, apenas_academico=False)
+            if conhecimento and "Nenhuma informação" not in conhecimento:
+                contexto.append(f"[Conhecimento Externo Adquirido]: {conhecimento}")
 
         return "\n".join(list(set(contexto)))

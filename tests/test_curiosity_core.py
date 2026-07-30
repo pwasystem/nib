@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 import networkx as nx
 from curiosity_core import CuriosityCore
 
-class TestCuriosityCore(unittest.TestCase):
+class TestCuriosityCoreOriginal(unittest.TestCase):
     def setUp(self):
         self.mock_brain = MagicMock()
         self.mock_brain.learning_enabled = True
@@ -14,8 +14,12 @@ class TestCuriosityCore(unittest.TestCase):
         self.mock_brain.learning_enabled = False
         self.assertIsNone(self.curiosity.investigar_lacunas())
 
-    def test_no_lacunas(self):
-        self.assertIsNone(self.curiosity.investigar_lacunas())
+    @patch("curiosity_core.CuriosityCore.pesquisa_criativa")
+    def test_no_lacunas_triggers_criatividade(self, mock_criatividade):
+        mock_criatividade.return_value = {"tipo": "criatividade", "tema": "IA"}
+        res = self.curiosity.investigar_lacunas()
+        self.assertEqual(res["tipo"], "criatividade")
+        mock_criatividade.assert_called_once()
 
     @patch("curiosity_core.CuriosityCore.pesquisar_web")
     def test_lacuna_found_and_learned(self, mock_pesquisa):
