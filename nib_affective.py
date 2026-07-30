@@ -49,6 +49,33 @@ class NIBAffectiveCore:
         """Ativa ou desativa a modulação emocional automática."""
         self.auto_mode = enabled
 
+    def entrar_modo_sono(self):
+        """Ajusta o estado afetivo para um estado de repouso e consolidação em sono REM."""
+        self.pleasure = 0.50
+        self.arousal = -0.70
+        self.dominance = 0.20
+
+    def analisar_sentimento_usuario(self, texto_usuario: str) -> dict:
+        """Análise léxica rápida de sentimento da mensagem do usuário para empatia adaptativa."""
+        txt = (texto_usuario or "").lower()
+        
+        frustracao_words = ["erro", "falha", "ruim", "problema", "não funciona", "droga", "raiva", "lento", "péssimo", "difícil", "ajuda"]
+        alegria_words = ["ótimo", "excelente", "obrigado", "parabéns", "legal", "incrível", "funciona", "perfeito", "amor", "maravilha"]
+        curiosidade_words = ["como", "por que", "qual", "explique", "ensine", "pesquise", "curioso", "entender", "teoria"]
+        
+        score_frustracao = sum(1 for w in frustracao_words if w in txt)
+        score_alegria = sum(1 for w in alegria_words if w in txt)
+        score_curiosidade = sum(1 for w in curiosidade_words if w in txt)
+        
+        if score_frustracao > score_alegria:
+            return {"sentimento": "frustrado", "empatia": "acolhedora", "delta_p": -0.2, "delta_a": 0.2, "delta_a_ocean": 0.15}
+        elif score_alegria > score_frustracao:
+            return {"sentimento": "satisfeito", "empatia": "entusiasmada", "delta_p": 0.3, "delta_a": 0.1, "delta_a_ocean": 0.0}
+        elif score_curiosidade > 0:
+            return {"sentimento": "curioso", "empatia": "analítica", "delta_p": 0.1, "delta_a": 0.3, "delta_a_ocean": 0.05}
+        
+        return {"sentimento": "neutro", "empatia": "equilibrada", "delta_p": 0.0, "delta_a": 0.0, "delta_a_ocean": 0.0}
+
     def set_pad_direct(self, p_pct: float, a_pct: float, d_pct: float):
         """Ajuste manual direto via sliders (Desativa temporariamente o modo automático)."""
         self.pleasure = round(max(-100.0, min(100.0, p_pct)) / 100.0, 2)

@@ -211,14 +211,18 @@
 
     <header>
         <h1>🧠 NIB (Neuro-Informatik Brain)</h1>
-        <div style="display: flex; gap: 0.6rem; align-items: center;">
-            <div style="display: flex; border-radius: 6px; overflow: hidden;">
-                <button id="open-dashboard-btn" style="background: #0284c7; color: white; border: none; padding: 0.45rem 0.8rem; font-weight: bold; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 0.4rem; transition: background 0.2s;">
-                    📊 Dashboard
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <button id="sleep-btn" title="Consolidação Sináptica Noturna (Sono REM)" style="background: #6366f1; color: white; border: none; border-radius: 6px; padding: 0.45rem 0.8rem; font-weight: bold; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 0.4rem; transition: background 0.2s;">
+                    🌙 Dormir
                 </button>
-                <a href="/dashboard" target="_blank" title="Abrir Dashboard em Nova Página" style="background: #0369a1; color: white; border-left: 1px solid rgba(255,255,255,0.2); padding: 0.45rem 0.6rem; font-weight: bold; font-size: 0.85rem; text-decoration: none; display: flex; align-items: center; justify-content: center; transition: background 0.2s;">
-                    🔗 Nova Página
-                </a>
+                <div style="display: flex; border-radius: 6px; overflow: hidden;">
+                    <button id="open-dashboard-btn" style="background: #0284c7; color: white; border: none; padding: 0.45rem 0.8rem; font-weight: bold; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 0.4rem; transition: background 0.2s;">
+                        📊 Dashboard
+                    </button>
+                    <a href="/dashboard" target="_blank" title="Abrir Dashboard em Nova Página" style="background: #0369a1; color: white; border-left: 1px solid rgba(255,255,255,0.2); padding: 0.45rem 0.6rem; font-weight: bold; font-size: 0.85rem; text-decoration: none; display: flex; align-items: center; justify-content: center; transition: background 0.2s;">
+                        🔗 Nova Página
+                    </a>
+                </div>
             </div>
             <button class="settings-btn" id="open-sidebar-btn" title="Configurações Límbicas e Personalidade">⚙️</button>
         </div>
@@ -389,6 +393,31 @@
                     <h3><span>🎯 Áreas de Interesse (Aprendizado Autônomo)</span></h3>
                     <div id="active-interests-container" style="display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem;">
                         <span style="font-size: 0.75rem; color: #94a3b8;">Carregando tópicos...</span>
+                    </div>
+                </div>
+
+                <!-- METAS DE APRENDIZADO AUTÔNOMO DEFINIDAS PELO USUÁRIO -->
+                <div class="panel-box">
+                    <h3><span>🎯 Metas de Aprendizado Autônomo</span></h3>
+                    <div style="display: flex; gap: 0.4rem; margin-top: 0.5rem;">
+                        <input type="text" id="new-goal-input" placeholder="Ex: Aprender sobre Física Quântica" style="flex: 1; padding: 0.4rem; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.78rem; outline: none;">
+                        <button id="add-goal-btn" style="padding: 0.4rem 0.6rem; background: #16a34a; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 0.78rem; cursor: pointer;">
+                            + Add
+                        </button>
+                    </div>
+                    <div id="learning-goals-list" style="margin-top: 0.6rem; display: flex; flex-direction: column; gap: 0.4rem;">
+                        <span style="font-size: 0.75rem; color: #94a3b8;">Sem metas cadastradas</span>
+                    </div>
+                </div>
+
+                <!-- NOTIFICAÇÕES & WEBHOOKS -->
+                <div class="panel-box">
+                    <h3><span>🔔 Notificações Ativas & Webhooks</span></h3>
+                    <div style="display: flex; gap: 0.4rem; margin-top: 0.5rem;">
+                        <input type="text" id="webhook-url-input" placeholder="https://discord.com/api/webhooks/..." style="flex: 1; padding: 0.4rem; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.75rem; outline: none;">
+                        <button id="save-webhook-btn" style="padding: 0.4rem 0.6rem; background: #0284c7; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 0.78rem; cursor: pointer;">
+                            💾 Salvar
+                        </button>
                     </div>
                 </div>
 
@@ -1041,15 +1070,135 @@
 			});
 		}
 
+		// LÓGICA DO BOTÃO DORMIR (CONSOLIDAÇÃO REM NOTURNA)
+		async function executarSonoREM() {
+			try {
+				const resp = await fetch('/api/consolidate-memory', { method: 'POST' });
+				const data = await resp.json();
+				if (data.status === 'success') {
+					showToast(`😴 <b>NIB Entrou em Sono REM!</b><br>${data.resumo}`, 'success', 7000);
+					appendMessage(`*😴 NIB entrou em sono REM e realizou a consolidação sináptica noturna.*\n\n${data.resumo}`, 'ai');
+				}
+			} catch (err) {
+				showToast("Erro ao acionar sono REM: " + err.message, 'error');
+			}
+		}
+
+		const sleepBtn = document.getElementById('sleep-btn');
+		if (sleepBtn) {
+			sleepBtn.addEventListener('click', executarSonoREM);
+		}
+
+		// LÓGICA DE METAS DE APRENDIZADO AUTÔNOMO
+		async function carregarMetasAprendizado() {
+			const container = document.getElementById('learning-goals-list');
+			if (!container) return;
+			try {
+				const resp = await fetch('/api/learning-goals');
+				const data = await resp.json();
+				if (data.status === 'success') {
+					if (!data.goals || data.goals.length === 0) {
+						container.innerHTML = '<span style="font-size: 0.75rem; color: #94a3b8;">Sem metas ativas no momento</span>';
+						return;
+					}
+					container.innerHTML = data.goals.map(g => `
+						<div style="display:flex; justify-content:space-between; align-items:center; background:#0b0f19; padding:0.35rem 0.6rem; border-radius:4px; border:1px solid var(--border-color); font-size:0.78rem;">
+							<span style="color:#f8fafc; font-weight:500;">🎯 ${g.topico}</span>
+							<button onclick="removerMetaAprendizado('${g.id}')" style="background:none; border:none; color:#f87171; font-weight:bold; cursor:pointer; font-size:0.75rem;">✕</button>
+						</div>
+					`).join('');
+				}
+			} catch (err) {}
+		}
+
+		async function adicionarMetaAprendizado() {
+			const input = document.getElementById('new-goal-input');
+			if (!input || !input.value.trim()) return;
+			const topico = input.value.trim();
+			try {
+				const resp = await fetch('/api/learning-goals', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ topico: topico })
+				});
+				const data = await resp.json();
+				if (data.status === 'success') {
+					input.value = '';
+					showToast(`🎯 Nova meta cadastrada: <b>${topico}</b>`, 'success');
+					carregarMetasAprendizado();
+				}
+			} catch (err) {
+				showToast("Erro ao adicionar meta: " + err.message, 'error');
+			}
+		}
+
+		async function removerMetaAprendizado(metaId) {
+			try {
+				const resp = await fetch('/api/learning-goals/delete', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ id: metaId })
+				});
+				const data = await resp.json();
+				if (data.status === 'success') {
+					showToast("🗑️ Meta removida.", 'warning');
+					carregarMetasAprendizado();
+				}
+			} catch (err) {}
+		}
+
+		const addGoalBtn = document.getElementById('add-goal-btn');
+		if (addGoalBtn) {
+			addGoalBtn.addEventListener('click', adicionarMetaAprendizado);
+		}
+
+		// LÓGICA DE WEBHOOKS
+		async function carregarWebhookConfig() {
+			const input = document.getElementById('webhook-url-input');
+			if (!input) return;
+			try {
+				const resp = await fetch('/api/webhook-info');
+				const data = await resp.json();
+				if (data.status === 'success' && data.url) {
+					input.value = data.url;
+				}
+			} catch (err) {}
+		}
+
+		const saveWebhookBtn = document.getElementById('save-webhook-btn');
+		if (saveWebhookBtn) {
+			saveWebhookBtn.addEventListener('click', async () => {
+				const input = document.getElementById('webhook-url-input');
+				const url = input ? input.value.trim() : '';
+				try {
+					const resp = await fetch('/api/set-webhook', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ url: url })
+					});
+					const data = await resp.json();
+					if (data.status === 'success') {
+						showToast("🔔 Webhook salvo com sucesso!", 'success');
+					}
+				} catch (err) {
+					showToast("Erro ao salvar Webhook: " + err.message, 'error');
+				}
+			});
+		}
+
 		// Carrega a lista de modelos, modo de memória e templates ao abrir o menu lateral ⚙️
 		document.getElementById('open-sidebar-btn').addEventListener('click', () => {
 			carregarModelosOllama();
 			carregarModoMemoria();
 			carregarTemplatesPersonalidade();
+			carregarMetasAprendizado();
+			carregarWebhookConfig();
 		});
 		carregarModoMemoria();
 		carregarModelosOllama();
 		carregarTemplatesPersonalidade();
+		carregarMetasAprendizado();
+		carregarWebhookConfig();
 
 		// LÓGICA DO BOTÃO MATAR (REINICIAR VIDA)
 		document.getElementById('kill-btn').addEventListener('click', async () => {

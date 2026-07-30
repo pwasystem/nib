@@ -12,6 +12,7 @@ class CuriosityCore:
     """
     def __init__(self, brain_instance):
         self.brain = brain_instance
+        self.learning_goals = []  # Lista de metas: [{"id": "...", "topico": "...", "concluida": False}]
         self.interesses_padrao = [
             "inteligência artificial neuro-simbólica",
             "redes neurais biológicas e plasticidade sináptica",
@@ -19,6 +20,25 @@ class CuriosityCore:
             "filosofia da mente e consciência artificial",
             "biomimética e sistemas adaptativos"
         ]
+
+    def adicionar_meta_aprendizado(self, topico: str) -> dict:
+        """Adiciona uma nova meta de aprendizado autônomo definida pelo usuário."""
+        topico_clean = topico.strip()
+        if not topico_clean:
+            return None
+        meta_id = f"goal_{len(self.learning_goals) + 1}_{random.randint(1000, 9999)}"
+        meta = {"id": meta_id, "topico": topico_clean, "concluida": False, "descobertas": []}
+        self.learning_goals.append(meta)
+        logger.log_criatividade(f"🎯 Nova meta de aprendizado autônomo cadastrada: '{topico_clean}'")
+        return meta
+
+    def listar_metas_aprendizado(self) -> list:
+        return self.learning_goals
+
+    def remover_meta_aprendizado(self, meta_id: str) -> bool:
+        antes = len(self.learning_goals)
+        self.learning_goals = [g for g in self.learning_goals if g["id"] != meta_id]
+        return len(self.learning_goals) < antes
 
     def pesquisar_web(self, termo: str) -> str:
         """Executa busca HTML leve para preencher a lacuna encontrada."""
@@ -37,10 +57,15 @@ class CuriosityCore:
 
     def obter_tema_interesse_ou_memoria(self) -> tuple[str, str]:
         """
-        Extrai um tema baseado na memória existente (Neocórtex / Hipocampo)
-        ou seleciona um assunto de interesse espontâneo.
+        Extrai um tema baseado nas metas de aprendizado ativas, interesses da personalidade
+        ou nós da memória.
         Retorna (tema, origem)
         """
+        # 0. Priorizar Metas de Aprendizado Ativas definidas pelo usuário
+        metas_ativas = [g for g in self.learning_goals if not g.get("concluida")]
+        if metas_ativas and random.random() < 0.8:
+            meta_escolhida = random.choice(metas_ativas)
+            return meta_escolhida["topico"], f"meta_aprendizado ({meta_escolhida['topico']})"
         # 1. Tentar utilizar os interesses característicos da personalidade ativa
         try:
             if hasattr(self.brain, "active_personality") and self.brain.active_personality:

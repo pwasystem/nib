@@ -14,6 +14,7 @@ from nib_affective import NIBAffectiveCore
 from curiosity_core import CuriosityCore
 from personality_factory import PersonalityFactory
 from personalities.templates.custom_manager import CustomPersonalityStore
+from webhooks import WebhookManager
 
 app = FastAPI(title="NIB - Neuro-Informatik Brain")
 
@@ -344,6 +345,80 @@ async def upload_personality_file(file: UploadFile = File(...)):
         return {"status": "error", "message": f"Erro no processamento do arquivo: {str(e)}"}
 
 
+@app.post("/api/consolidate-memory")
+async def consolidate_memory():
+    """
+    Aciona o Modo de Sono / Consolidação REM Noturna no NIB (Botão Dormir).
+    Reforça conexões de alta retenção no Hipocampo e Neocórtex e ajusta o Sistema Límbico para repouso.
+    """
+    res = nib.consolidar_memorias()
+    nib_affective.entrar_modo_sono()
+    WebhookManager.notify("SONO_REM", "Consolidação Sináptica Concluída", res.get("resumo", ""))
+    return res
+
+
+@app.get("/api/learning-goals")
+async def get_learning_goals():
+    """Retorna a lista de metas de aprendizado autônomo ativas."""
+    return {"status": "success", "goals": curiosity.listar_metas_aprendizado()}
+
+
+@app.post("/api/learning-goals")
+async def add_learning_goal(request: Request):
+    """Adiciona uma nova meta de aprendizado autônomo."""
+    data = await request.json()
+    topico = data.get("topico")
+    if not topico:
+        return {"status": "error", "message": "Tópico não informado."}
+    meta = curiosity.adicionar_meta_aprendizado(topico)
+    WebhookManager.notify("META_APRENDIZADO", f"Nova Meta Cadastrada: '{topico}'", f"O NIB direcionará pesquisas autônomas para '{topico}'.")
+    return {"status": "success", "goal": meta}
+
+
+@app.post("/api/learning-goals/delete")
+async def delete_learning_goal(request: Request):
+    """Remove uma meta de aprendizado autônomo pelo ID."""
+    data = await request.json()
+    meta_id = data.get("id")
+    if curiosity.remover_meta_aprendizado(meta_id):
+        return {"status": "success", "message": "Meta removida."}
+    return {"status": "error", "message": "Meta não encontrada."}
+
+
+@app.get("/api/dashboard/benchmark")
+async def get_dashboard_benchmark():
+    """Retorna métricas quantitativas de desempenho cognitivo e eficiência da memória."""
+    return {"status": "success", "benchmark": nib.obter_metricas_benchmark()}
+
+
+@app.post("/api/set-webhook")
+async def set_webhook(request: Request):
+    """Configura a URL de notificação ativa do Webhook."""
+    data = await request.json()
+    url = data.get("url", "")
+    if WebhookManager.set_url(url):
+        return {"status": "success", "message": "URL de Webhook atualizada com sucesso!"}
+    return {"status": "error", "message": "Erro ao atualizar Webhook."}
+
+
+@app.get("/api/webhook-info")
+async def get_webhook_info():
+    """Retorna a URL do Webhook configurada."""
+    return {"status": "success", "url": WebhookManager.load_config() or ""}
+
+
+@app.get("/api/memory/query")
+async def query_memory_state():
+    """Retorna o estado estruturado unificado da arquitetura cognitiva do NIB."""
+    return {
+        "status": "success",
+        "benchmark": nib.obter_metricas_benchmark(),
+        "active_personality": nib.active_personality.to_dict() if hasattr(nib.active_personality, "to_dict") else {},
+        "pad_vectors": {"p": nib_affective.pleasure, "a": nib_affective.arousal, "d": nib_affective.dominance},
+        "learning_goals": curiosity.listar_metas_aprendizado()
+    }
+
+
 @app.post("/api/set-emotion")
 async def set_emotion(request: Request):
     data = await request.json()
@@ -406,6 +481,12 @@ async def chat_stream(prompt: str):
         descoberta_autonoma = None
         if nib.learning_enabled:
             descoberta_autonoma = curiosity.investigar_lacunas()
+            if descoberta_autonoma:
+                WebhookManager.notify(
+                    "APRENDIZADO_AUTONOMO",
+                    f"Nova Descoberta Autônoma: '{descoberta_autonoma.get('tema') or descoberta_autonoma.get('conceito')}'",
+                    descoberta_autonoma.get("descoberta", "")
+                )
 
         memoria_contexto = nib.resgatar_memoria_relevante(prompt)
         contexto_trabalho = nib.obter_contexto_trabalho()

@@ -772,4 +772,96 @@ class NeuroInformatikBrain:
                 vistos.add(item)
                 contexto_unico.append(item)
 
-        return "\n".join(contexto_unico)
+        return "\n".join(contexto_unico)
+
+    def consolidar_memorias(self) -> dict:
+        """
+        Executa a Consolidação Sináptica Noturna (Sono REM) do NIB.
+        Varre as memórias episódicas do Hipocampo e os nós do Neocórtex,
+        identifica memórias de alta retenção (Força Sináptica S > 1.5),
+        reforça suas conexões no Grafo Semântico (+0.8), cria novas associações entre 
+        conceitos que co-ocorrem e salva o estado consolidado.
+        """
+        logger.log_nib("SONO REM", "🌙 Entrando em estado de repouso e consolidação sináptica noturna...", logger.Colors.BRIGHT_CYAN)
+        agora = time.time()
+        memorias_consolidadas = 0
+        nos_reforcados = 0
+        sinapses_criadas = 0
+
+        # 1. Varre o Hipocampo em busca de memórias com alta estabilidade
+        try:
+            dados = self.hipocampo.get(include=["documents", "metadatas"])
+            ids = dados.get("ids", [])
+            docs = dados.get("documents", [])
+            metas = dados.get("metadatas", [])
+
+            for m_id, doc, meta in zip(ids, docs, metas):
+                forca = meta.get("forca_sinaptica", 1.0)
+                if forca >= 1.2:
+                    memorias_consolidadas += 1
+                    nova_forca = min(10.0, forca + 0.8)
+                    meta["forca_sinaptica"] = nova_forca
+                    meta["ultimo_acesso"] = agora
+                    try:
+                        self.hipocampo.update(ids=[m_id], metadatas=[meta])
+                    except Exception:
+                        pass
+                    
+                    # Extrai conceitos principais da memória e reforça no Neocórtex
+                    palavras = [p.lower() for p in doc.split() if len(p) > 4 and p.isalpha()]
+                    if len(palavras) >= 2:
+                        n1, n2 = palavras[0], palavras[1]
+                        if self.neocortex.has_node(n1) and self.neocortex.has_node(n2):
+                            nos_reforcados += 2
+                            if self.neocortex.has_edge(n1, n2):
+                                self.neocortex[n1][n2]["weight"] = min(5.0, self.neocortex[n1][n2].get("weight", 1.0) + 0.5)
+                            else:
+                                self.neocortex.add_edge(n1, n2, weight=1.0, relation="associado_no_sono")
+                                sinapses_criadas += 1
+        except Exception as e:
+            logger.log_nib("SONO REM ERRO", f"Falha na consolidação do Hipocampo: {e}", logger.Colors.RED)
+
+        self._salvar_neocortex()
+
+        resumo = (
+            f"🌙 Sono REM concluído: {memorias_consolidadas} memórias episódicas consolidadas, "
+            f"{nos_reforcados} nós do Neocórtex reforçados e {sinapses_criadas} novas sinapses associativas criadas!"
+        )
+        logger.log_nib("SONO REM SUCESSO", resumo, logger.Colors.BRIGHT_GREEN)
+
+        return {
+            "status": "success",
+            "memorias_consolidadas": memorias_consolidadas,
+            "nos_reforcados": nos_reforcados,
+            "sinapses_criadas": sinapses_criadas,
+            "resumo": resumo
+        }
+
+    def obter_metricas_benchmark(self) -> dict:
+        """Calcula métricas quantitativas de desempenho cognitivo e retenção de memória."""
+        nos_count = self.neocortex.number_of_nodes()
+        arestas_count = self.neocortex.number_of_edges()
+        
+        episodios_count = 0
+        forca_media = 0.0
+        try:
+            dados = self.hipocampo.get(include=["metadatas"])
+            metas = dados.get("metadatas", [])
+            episodios_count = len(metas)
+            if episodios_count > 0:
+                forca_media = sum(m.get("forca_sinaptica", 1.0) for m in metas) / episodios_count
+        except Exception:
+            pass
+
+        densidade_grafo = (2.0 * arestas_count / (nos_count * (nos_count - 1))) if nos_count > 1 else 0.0
+
+        return {
+            "modo_memoria": self.memory_mode,
+            "total_memorias_episodicas": episodios_count,
+            "forca_sinaptica_media": round(forca_media, 2),
+            "nos_neocortex": nos_count,
+            "arestas_neocortex": arestas_count,
+            "densidade_grafo": round(densidade_grafo, 4),
+            "aprendizado_autonomo_ativo": self.learning_enabled,
+            "personalidade_ativa": self.active_personality.name if self.active_personality else "Nenhuma"
+        }

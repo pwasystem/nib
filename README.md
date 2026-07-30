@@ -98,6 +98,13 @@ http://127.0.0.1:8000/dashboard
 | `GET` | `/api/chat` | Endpoint principal de chat com streaming SSE não-bloqueante |
 | `GET` | `/dashboard` | Interface do Dashboard Cognitivo exibida como página inteira |
 | `GET` | `/personality-editor` | Editor de Personalidades standalone em janela/aba exclusiva |
+| `POST` | `/api/consolidate-memory` | Aciona o Modo de Sono / Consolidação Sináptica REM Noturna (Botão Dormir) |
+| `GET` / `POST` | `/api/learning-goals` | Gerencia metas de aprendizado autônomo do usuário |
+| `POST` | `/api/learning-goals/delete` | Remove uma meta de aprendizado autônomo pelo ID |
+| `POST` | `/api/set-webhook` | Configura a URL de notificação ativa do Webhook (Discord / Custom) |
+| `GET` | `/api/webhook-info` | Retorna a URL de Webhook configurada |
+| `GET` | `/api/dashboard/benchmark` | Retorna métricas quantitativas de retenção e eficiência da memória |
+| `GET` | `/api/memory/query` | Retorna a consulta estruturada unificada da arquitetura cognitiva |
 | `GET` | `/api/dashboard/stats` | Retorna estatísticas de memória, força sináptica, histórico de podas e estados |
 | `GET` | `/api/dashboard/graph` | Retorna nós e arestas do Neocórtex formatados para o visualizador de rede |
 | `GET` | `/api/dashboard/logs` | Retorna o histórico recente de logs do terminal para agregação no Dashboard |

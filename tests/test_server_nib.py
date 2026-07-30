@@ -6,6 +6,11 @@ from server_nib import app
 
 class TestServerNIB(unittest.TestCase):
     def setUp(self):
+        import config
+        from server_nib import nib, nib_affective
+        config.OLLAMA_MODEL = "qwen2.5:3b"
+        nib.model_name = "qwen2.5:3b"
+        nib_affective.auto_mode = False
         self.client = TestClient(app)
 
     def test_get_index(self):
@@ -72,21 +77,29 @@ class TestServerNIB(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["current"], "llama3.1:8b")
 
-    @patch("requests.post")
-    def test_chat_stream_error(self, mock_post):
-        mock_post.side_effect = Exception("Connection refused")
+    @patch("httpx.AsyncClient.stream")
+    def test_chat_stream_error(self, mock_stream):
+        mock_stream.side_effect = Exception("Connection refused")
         response = self.client.get("/api/chat?prompt=ola")
         self.assertEqual(response.status_code, 200)
         self.assertIn("Connection refused", response.text)
 
-    @patch("requests.post")
-    def test_chat_stream_success(self, mock_post):
-        mock_resp = MagicMock()
-        mock_resp.iter_lines.return_value = [
-            json.dumps({"response": "Ola! "}).encode("utf-8"),
-            json.dumps({"response": "Como posso ajudar?"}).encode("utf-8")
-        ]
-        mock_post.return_value = mock_resp
+    @patch("httpx.AsyncClient.stream")
+    def test_chat_stream_success(self, mock_stream):
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
+        async def async_lines():
+            yield json.dumps({"response": "Ola! "})
+            yield json.dumps({"response": "Como posso ajudar?"})
+        mock_response.aiter_lines = async_lines
+
+        class MockAsyncStreamContext:
+            async def __aenter__(self):
+                return mock_response
+            async def __aexit__(self, exc_type, exc_val, exc_tb):
+                pass
+
+        mock_stream.return_value = MockAsyncStreamContext()
         response = self.client.get("/api/chat?prompt=ola")
         self.assertEqual(response.status_code, 200)
         self.assertIn("Ola! ", response.text)
