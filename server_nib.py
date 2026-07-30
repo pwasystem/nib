@@ -59,6 +59,16 @@ def get_personality_editor():
     return "<h1>Editor de Personalidades não encontrado.</h1>"
 
 
+@app.get("/ajuda", response_class=HTMLResponse)
+@app.get("/help", response_class=HTMLResponse)
+def get_help_page():
+    help_path = os.path.join(config.BASE_DIR, "help.html")
+    if os.path.exists(help_path):
+        with open(help_path, "r", encoding="utf-8") as f:
+            return f.read()
+    return "<h1>Página de Ajuda não encontrada.</h1>"
+
+
 @app.get("/api/memory-mode")
 async def get_memory_mode():
     """Retorna o modo de memória ativo no NIB."""

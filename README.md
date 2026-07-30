@@ -98,6 +98,7 @@ http://127.0.0.1:8000/dashboard
 | `GET` | `/api/chat` | Endpoint principal de chat com streaming SSE não-bloqueante |
 | `GET` | `/dashboard` | Interface do Dashboard Cognitivo exibida como página inteira |
 | `GET` | `/personality-editor` | Editor de Personalidades standalone em janela/aba exclusiva |
+| `GET` | `/ajuda` | Central de Ajuda, Manual do Usuário e Informações do Criador (Abas) |
 | `POST` | `/api/consolidate-memory` | Aciona o Modo de Sono / Consolidação Sináptica REM Noturna (Botão Dormir) |
 | `GET` / `POST` | `/api/learning-goals` | Gerencia metas de aprendizado autônomo do usuário |
 | `POST` | `/api/learning-goals/delete` | Remove uma meta de aprendizado autônomo pelo ID |

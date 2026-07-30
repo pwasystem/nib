@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>❓ NIB — Central de Ajuda & Manual do Usuário</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --sidebar-bg: #111827;
+            --text-color: #f8fafc;
+            --accent-color: #38bdf8;
+            --border-color: #334155;
+            --success-color: #4ade80;
+            --purple-color: #a855f7;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0; padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex; flex-direction: column;
+            min-height: 100vh;
+        }
+
+        header {
+            background-color: var(--card-bg);
+            padding: 1rem 2rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 100;
+        }
+
+        header h1 {
+            margin: 0; font-size: 1.3rem; color: var(--accent-color);
+            display: flex; align-items: center; gap: 0.6rem;
+        }
+
+        .header-links { display: flex; gap: 0.6rem; }
+        .nav-btn {
+            background: var(--sidebar-bg); border: 1px solid var(--border-color);
+            color: var(--text-color); padding: 0.5rem 0.9rem; border-radius: 6px;
+            text-decoration: none; font-size: 0.85rem; font-weight: bold;
+            display: flex; align-items: center; gap: 0.3rem; transition: background 0.2s;
+        }
+        .nav-btn:hover { background: var(--border-color); }
+
+        .container {
+            max-width: 1050px; margin: 2rem auto; width: 90%;
+            display: flex; flex-direction: column; gap: 1.5rem; flex: 1;
+        }
+
+        /* SISTEMA DE ABAS */
+        .tabs-header {
+            display: flex; gap: 0.5rem; border-bottom: 1px solid var(--border-color);
+            background: var(--sidebar-bg); padding: 0.5rem 0.5rem 0 0.5rem; border-radius: 8px 8px 0 0;
+        }
+
+        .tab-btn {
+            padding: 0.8rem 1.4rem; background: transparent; border: none;
+            border-bottom: 3px solid transparent; color: #94a3b8; font-weight: bold;
+            font-size: 0.95rem; cursor: pointer; transition: all 0.2s;
+            display: flex; align-items: center; gap: 0.5rem;
+        }
+
+        .tab-btn:hover { color: var(--text-color); }
+        .tab-btn.active {
+            color: var(--accent-color); border-bottom-color: var(--accent-color);
+            background: var(--card-bg); border-radius: 6px 6px 0 0;
+        }
+
+        .tab-content {
+            background: var(--card-bg); border: 1px solid var(--border-color);
+            border-top: none; border-radius: 0 0 10px 10px; padding: 2rem;
+            display: none; line-height: 1.7;
+        }
+
+        .tab-content.active { display: block; }
+
+        h2 { color: var(--accent-color); border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-top: 0; font-size: 1.3rem; }
+        h3 { color: #e2e8f0; margin-top: 1.5rem; margin-bottom: 0.5rem; font-size: 1.1rem; }
+
+        .creator-card {
+            background: #0b0f19; border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 1.8rem; display: flex; gap: 1.5rem; align-items: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .creator-avatar {
+            width: 100px; height: 100px; background: linear-gradient(135deg, #0284c7, #6366f1);
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-size: 2.8rem; color: white; font-weight: bold; flex-shrink: 0;
+            border: 3px solid var(--accent-color);
+        }
+
+        .creator-info { flex: 1; }
+        .creator-info h3 { margin: 0 0 0.4rem 0; font-size: 1.4rem; color: var(--accent-color); }
+        .creator-badge {
+            display: inline-block; background: #0369a1; color: white; padding: 0.2rem 0.6rem;
+            border-radius: 12px; font-size: 0.78rem; font-weight: bold; margin-bottom: 0.8rem;
+        }
+
+        .info-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.2rem; margin-top: 1.2rem;
+        }
+
+        .info-box {
+            background: #0b0f19; border: 1px solid var(--border-color); border-radius: 8px; padding: 1.2rem;
+        }
+
+        .info-box h4 { margin-top: 0; color: var(--accent-color); font-size: 1rem; display: flex; align-items: center; gap: 0.4rem; }
+
+        ul { padding-left: 1.2rem; margin-top: 0.4rem; }
+        li { margin-bottom: 0.5rem; }
+
+        code {
+            background: #090d16; color: #38bdf8; padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.88rem; font-family: monospace;
+        }
+
+        .highlight-bar {
+            background: rgba(56, 189, 248, 0.1); border-left: 4px solid var(--accent-color);
+            padding: 0.8rem 1.2rem; border-radius: 0 6px 6px 0; margin: 1rem 0;
+        }
+
+        footer {
+            text-align: center; padding: 1.5rem; border-top: 1px solid var(--border-color);
+            font-size: 0.85rem; color: #64748b; margin-top: auto; background: var(--sidebar-bg);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>❓ Central de Ajuda & Manual — NIB</h1>
+        <div class="header-links">
+            <a href="/" class="nav-btn">💬 Chat Principal</a>
+            <a href="/dashboard" class="nav-btn">📊 Dashboard</a>
+            <a href="/personality-editor" class="nav-btn">✏️ Editor de Personalidades</a>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- ABAS DE NAVEGAÇÃO -->
+        <div class="tabs-header">
+            <button class="tab-btn active" onclick="openTab(event, 'tab-sobre-criador')">👨‍💻 Sobre o Criador</button>
+            <button class="tab-btn" onclick="openTab(event, 'tab-sobre-sistema')">🧠 Sobre o Sistema (NIB)</button>
+            <button class="tab-btn" onclick="openTab(event, 'tab-manual-usuario')">📘 Manual de Utilização</button>
+        </div>
+
+        <!-- ABA 1: SOBRE O CRIADOR -->
+        <div id="tab-sobre-criador" class="tab-content active">
+            <h2>👨‍💻 Sobre o Criador do NIB</h2>
+            
+            <div class="creator-card">
+                <div class="creator-avatar">LR</div>
+                <div class="creator-info">
+                    <h3>Luiz Roberto Nogueira Junior</h3>
+                    <span class="creator-badge">💻 Programador & Professor de TI</span>
+                    <p style="margin: 0.4rem 0; color: #cbd5e1;">
+                        <b>Data de Nascimento:</b> 25/04/1978 (48 anos)<br>
+                        <b>Perfil & Filosofia:</b> Apaixonado por tecnologia e arquitetura de software, com <b>hiperfoco em aprendizado contínuo, ciência da computação e inteligência artificial</b>.
+                    </p>
+                </div>
+            </div>
+
+            <div class="highlight-bar">
+                <b>💡 Propósito do Projeto NIB:</b> O NIB (Neuro-Informatik Brain) nasceu da visão de criar um assistente cognitivo com funcionamento inspirado na neurobiologia humana — integrando memória episódica, associações em grafo semântico, modelos afetivos e aprendizado autônomo.
+            </div>
+
+            <div class="info-grid">
+                <div class="info-box">
+                    <h4>🎯 Hiperfoco em Aprendizado & Tecnologia</h4>
+                    <p>O autor dedica sua jornada profissional ao ensino de Tecnologia da Informação e ao desenvolvimento de soluções inovadoras que unem teoria da computação, engenharia de software e modelos cognitivos de IA.</p>
+                </div>
+                <div class="info-box">
+                    <h4>📚 Atuação Acadêmica & Profissional</h4>
+                    <p>Como Professor de TI e Programador, atua na formação de novos desenvolvedores, promovendo o pensamento crítico, a lógica algorítmica e a exploração de novas tecnologias de código aberto.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ABA 2: SOBRE O SISTEMA -->
+        <div id="tab-sobre-sistema" class="tab-content">
+            <h2>🧠 Visão Geral da Arquitetura do NIB</h2>
+            <p>O <b>NIB (Neuro-Informatik Brain)</b> é um assistente cognitivo biológico baseado em 3 níveis de memória e estado afetivo límbico:</p>
+
+            <div class="info-grid">
+                <div class="info-box">
+                    <h4>⚡ 1. Memória de Trabalho (Curto Prazo)</h4>
+                    <p>Buffer circular deslizante no Córtex Pré-Frontal para retenção imediata das mensagens ativas da sessão sem perda de contexto.</p>
+                </div>
+                <div class="info-box">
+                    <h4>🧠 2. Memória Humana (Sináptica)</h4>
+                    <p>Utiliza a curva de esquecimento hebbiano de Ebbinghaus (<code>R = e^(-t/S)</code>). Memórias não reativadas sofrem poda sináptica gradual.</p>
+                </div>
+                <div class="info-box">
+                    <h4>💎 3. Memória Perfeita (WAL + GraphRAG)</h4>
+                    <p>Gravação imutável no diário WAL, ChromaDB e Grafo Semântico do Neocórtex para persistência perpétua de conhecimento.</p>
+                </div>
+                <div class="info-box">
+                    <h4>🧪 4. Sistema Límbico PAD (Emoções)</h4>
+                    <p>Modelo afetivo baseado em 3 vetores: <b>Prazer (P)</b>, <b>Excitação (A)</b> e <b>Dominância (D)</b>, modulando dinamicamente a postura do modelo.</p>
+                </div>
+                <div class="info-box">
+                    <h4>🎨 5. Aprendizado Autônomo & Curiosidade</h4>
+                    <p>Motor espontâneo que identifica lacunas no Grafo Semântico ou pesquisa metas cadastradas na web sem supervisão.</p>
+                </div>
+                <div class="info-box">
+                    <h4>🌙 6. Sono REM & Consolidação Noturna</h4>
+                    <p>Processo de repouso que varre o Hipocampo e o Neocórtex, fortalecendo memórias de alta estabilidade e criando novas sinapses.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ABA 3: MANUAL DE UTILIZAÇÃO -->
+        <div id="tab-manual-usuario" class="tab-content">
+            <h2>📘 Manual de Utilização e Instruções do Usuário</h2>
+
+            <h3>💬 1. Conversação & Chat Principal</h3>
+            <ul>
+                <li>Digite sua mensagem no campo inferior e pressione <code>Enter</code> ou clique em <b>Enviar</b>.</li>
+                <li>O NIB resgatará automaticamente memórias episódicas do Hipocampo e conceitos do Neocórtex para responder com precisão.</li>
+                <li>Se a informação não estiver na memória local, o NIB aciona pesquisas externas na web (Wikipedia / Acadêmica / Notícias) e memoriza a descoberta.</li>
+            </ul>
+
+            <h3>🧠 2. Alternando o Modo de Memória</h3>
+            <ul>
+                <li>Abra o menu de configurações laterais (ícone de engrenagem ⚙️).</li>
+                <li>Escolha entre <b>🧠 Memória Humana (Sináptica & Poda)</b> ou <b>💎 Memória Perfeita (Perpétua)</b>.</li>
+                <li>No Modo Humano, você pode clicar em <b>🍂 Executar Poda Sináptica</b> para esquecer memórias de baixo uso.</li>
+            </ul>
+
+            <h3>🌙 3. Como usar a Consolidação em Sono REM (Botão Dormir)</h3>
+            <ul>
+                <li>Clique no botão <b>"🌙 Dormir"</b> no topo da tela ou no menu lateral.</li>
+                <li>O NIB entra em estado de repouso (Sono REM), consolida memórias de alta retenção ($S > 1.2$), fortalece conexões no Neocórtex e exibe um resumo da consolidação.</li>
+            </ul>
+
+            <h3>🎭 4. Editor de Personalidades & Arquétipos</h3>
+            <ul>
+                <li>Selecione arquétipos prontos no menu dropdown (Presets, Zodíaco Ocidental, Matriz Chinesa).</li>
+                <li>Clique em <b>"✏️ Editor de Personalidades (Nova Janela)"</b> para abrir o gerenciador completo (`/personality-editor`).</li>
+                <li>No editor, você pode ajustar sliders <b>OCEAN (Big Five)</b>, vetores <b>PAD (Emoções)</b>, cadastrar <b>Áreas de Interesse</b> ou enviar arquivos <code>.json</code> / <code>.py</code>.</li>
+            </ul>
+
+            <h3>🎯 5. Metas de Aprendizado Autônomo</h3>
+            <ul>
+                <li>No menu lateral, digite um tópico na caixa <b>🎯 Metas de Aprendizado Autônomo</b> e clique em <b>+ Add</b>.</li>
+                <li>O motor de curiosidade do NIB direcionará pesquisas autônomas na web para concluir as metas cadastradas.</li>
+            </ul>
+
+            <h3>🔔 6. Configuração de Webhooks</h3>
+            <ul>
+                <li>Insira uma URL de Webhook (ex: Webhook do Discord) no menu lateral e clique em <b>💾 Salvar</b>.</li>
+                <li>O NIB enviará notificações automáticas ao concluir o Sono REM ou realizar descobertas autônomas.</li>
+            </ul>
+
+            <h3>📊 7. Dashboard Cognitivo (`/dashboard`)</h3>
+            <ul>
+                <li>Clique em <b>📊 Dashboard</b> ou acesse <code>/dashboard</code> em nova janela para visualizar:
+                    <ul>
+                        <li><b>Métricas de Memória:</b> Total de memórias, força sináptica média e estatísticas de podas.</li>
+                        <li><b>Visualizador de Grafo Semântico:</b> Rede interativa 3D de nós e conexões do Neocórtex.</li>
+                        <li><b>Terminal de Logs em Tempo Real:</b> Agregador de logs do terminal com categorização por tags.</li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <footer>
+        NIB — Neuro-Informatik Brain | Desenvolvido por <b>Luiz Roberto Nogueira Junior</b> (2026)
+    </footer>
+
+    <script>
+        function openTab(evt, tabName) {
+            const tabContents = document.querySelectorAll('.tab-content');
+            tabContents.forEach(content => content.classList.remove('active'));
+
+            const tabBtns = document.querySelectorAll('.tab-btn');
+            tabBtns.forEach(btn => btn.classList.remove('active'));
+
+            document.getElementById(tabName).classList.add('active');
+            evt.currentTarget.classList.add('active');
+        }
+    </script>
+</body>
+</html>
