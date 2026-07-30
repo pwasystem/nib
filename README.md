@@ -30,19 +30,23 @@
 
 - **🎭 Sistema Extensível de Templates de Personalidade & Emoção (`personalities/templates/`)**:
   - Modula simultaneamente a personalidade **Big Five (OCEAN)** e o estado de afeto **PAD (Prazer, Excitação, Dominância)**.
-  - **🌟 Zodíaco Ocidental**: 12 Signos (Áries, Touro, Gêmeos, Câncer, Leão, Virgem, Libra, Escorpião, Sagitário, Capricórnio, Aquário, Peixes).
-  - **🐉 Matriz Sexagesimal Chinesa**: 60 Combinações de 12 Animais $\times$ 5 Elementos (Madeira, Fogo, Terra, Metal, Água).
+  - **🌟 Zodíaco Ocidental**: 12 Signos (Áries, Touro, Gêmeos, Câncer, Leão, Virgem, Libra, Escorpião, Sagitário, Capricórnio, Aquário, Peixes) com tópicos de interesse específicos.
+  - **🐉 Matriz Sexagesimal Chinesa**: 60 Combinações de 12 Animais $\times$ 5 Elementos (Madeira, Fogo, Terra, Metal, Água) com interesses direcionados por animal/elemento.
   - **🎭 Presets Arquétipos Cognitivos**: Presets predefinidos (*Mentor Estóico*, *Cientista Entusiasmado*, *Auditor Crítico*, *Poeta Empático*).
+  - **🛠️ Cadastro, Edição e Upload Customizado**: Suporte total para cadastro, edição de parâmetros (OCEAN/PAD/Descrição/Interesses), exclusão e upload de novos arquivos `.json` ou módulos Python `.py` em `personalities/templates/`.
 
-- **🪞 Auto-Consciência de Estado & Parâmetros**:
-  - Injeção dinâmica no prompt do sistema da auto-consciência total do NIB quanto ao seu modelo Ollama ativo, modo de memória, percentuais numéricos de Big Five (OCEAN), vetores emocionais PAD e aprendizado autônomo.
+- **🎯 Aprendizado Autônomo Guiado por Interesses**:
+  - Cada personalidade possui uma lista de **interesses característicos**. Quando o **Aprendizado Autônomo** (`CuriosityCore`) está ativado, ele prioriza a pesquisa de tópicos alinhados aos interesses da personalidade ativa.
+
+- **🪞 Plena Auto-Consciência de Capacidades, Emoções & Personalidade**:
+  - Injeção dinâmica no prompt do sistema da auto-consciência total do NIB quanto ao seu modelo Ollama ativo, modo de memória, percentuais numéricos de Big Five (OCEAN), vetores emocionais PAD, tópicos de interesse e capacidades de aprendizado autônomo.
 
 - **📊 Dashboard Cognitivo, Visualizador de Grafo & Agregador de Logs**:
   - **Página Independente (`/dashboard`)**: Acesso via modal ou em aba/janela exclusiva com o botão *"🔗 Nova Página"*.
   - **🖥️ Terminal de Logs em Tempo Real**: Agregador e visualizador de logs do terminal em tempo real com auto-refresh (2s), categorização visual de tags (`[HIPOCAMPO]`, `[NEOCÓRTEX]`, `[PODA SINÁPTICA]`, `[MEMÓRIA HUMANA]`, etc.) e auto-scroll.
 
 - **💾 Persistência de Preferências**:
-  - Memorização persistente do modelo Ollama selecionado em disco (`nib_storage/selected_model.txt`).
+  - Memorização persistente do modelo Ollama selecionado em disco (`nib_storage/selected_model.txt`) e personalidades customizadas (`nib_storage/custom_personalities.json`).
 
 ---
 
@@ -95,8 +99,11 @@ http://127.0.0.1:8000/dashboard
 | `GET` | `/api/dashboard/stats` | Retorna estatísticas de memória, força sináptica, histórico de podas e estados |
 | `GET` | `/api/dashboard/graph` | Retorna nós e arestas do Neocórtex formatados para o visualizador de rede |
 | `GET` | `/api/dashboard/logs` | Retorna o histórico recente de logs do terminal para agregação no Dashboard |
-| `GET` | `/api/personality-templates` | Lista todos os templates de personalidade/emoção (Presets, Zodíaco, Matriz Chinesa) |
-| `POST` | `/api/apply-personality-template` | Aplica um template reconfigurando simultaneamente OCEAN e vetores PAD |
+| `GET` | `/api/personality-templates` | Lista todos os templates de personalidade/emoção (Presets, Custom, Zodíaco, Matriz Chinesa) |
+| `POST` | `/api/apply-personality-template` | Aplica um template reconfigurando simultaneamente OCEAN, vetores PAD e interesses |
+| `POST` | `/api/personality/save-custom` | Cria ou edita um template de personalidade customizado (OCEAN, PAD, descrição, interesses) |
+| `POST` | `/api/personality/delete-custom` | Remove um template de personalidade customizado cadastrado |
+| `POST` | `/api/personality/upload-file` | Faz upload de arquivo `.json` ou módulo Python `.py` em `personalities/templates/` |
 | `GET` | `/api/working-memory` | Retorna as mensagens ativas na Memória de Trabalho (curto prazo) |
 | `POST` | `/api/clear-working-memory` | Esvazia o buffer de curto prazo da sessão |
 | `GET` | `/api/memory-mode` | Retorna o modo de memória ativo (`human` ou `perfect`) |
