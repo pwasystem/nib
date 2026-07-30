@@ -116,4 +116,5 @@ python -m unittest discover tests
 
 ## 📄 Licença
 
-Este projeto está licenciado sob a licença MIT.
+Este projeto está licenciado sob a [Licença MIT](file:///c:/Users/spide/Sistemas/nib/LICENSE).
+
