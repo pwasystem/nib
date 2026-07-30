@@ -22,6 +22,7 @@ class CuriosityCore:
 
     def pesquisar_web(self, termo: str) -> str:
         """Executa busca HTML leve para preencher a lacuna encontrada."""
+        logger.log_pesquisa_web(f"Pesquisando na web por: '{termo}'...")
         resultados = []
         try:
             url = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(termo)}"

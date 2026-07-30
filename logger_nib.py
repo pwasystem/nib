@@ -71,6 +71,9 @@ def log_reforco(msg: str):
 def log_busca(msg: str):
     _safe_print(f"{Colors.BRIGHT_BLUE}[BUSCA ACADÊMICA/WEB]{Colors.RESET} {msg}")
 
+def log_pesquisa_web(msg: str):
+    _safe_print(f"{Colors.BRIGHT_CYAN}🌐 [PESQUISA WEB]{Colors.RESET} {msg}")
+
 def log_busca_academica(msg: str):
     _safe_print(f"{Colors.BRIGHT_BLUE}🎓 [BUSCA ACADÊMICA]{Colors.RESET} {msg}")
 

@@ -149,6 +149,7 @@ class NeuroInformatikBrain:
 
     def buscar_noticias(self, query: str) -> list:
         resultados = []
+        logger.log_pesquisa_web(f"Pesquisa Web (Notícias) por: '{query}'")
         logger.log_busca_noticias(f"Buscando manchetes e notícias sobre: '{query}'...")
         try:
             url_news = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(query + ' noticias news')}"
@@ -170,6 +171,7 @@ class NeuroInformatikBrain:
 
     def buscar_tendencias_e_web(self, query: str) -> list:
         resultados = []
+        logger.log_pesquisa_web(f"Pesquisa Web Geral por: '{query}'")
         logger.log_busca_tendencias(f"Buscando tendências e informações gerais na web: '{query}'...")
         try:
             url_web = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(query)}"
@@ -196,6 +198,7 @@ class NeuroInformatikBrain:
           2. Notícias Recentes
           3. Tendências e Web Geral
         """
+        logger.log_pesquisa_web(f"Pesquisa externa disparada na web para a consulta: '{query}'")
         # Camada 1: Busca Acadêmica
         resultados = self.buscar_diretorio_academico(query)
         
