@@ -3,13 +3,16 @@ import json
 import math
 import time
 import requests
+import httpx
 import urllib.parse
+
 import chromadb
 import networkx as nx
 from bs4 import BeautifulSoup
 
 import config
 import logger_nib as logger
+from working_memory import WorkingMemory
 
 class NeuroInformatikBrain:
     """
@@ -30,14 +33,20 @@ class NeuroInformatikBrain:
         self.neocortex = nx.DiGraph()
         self._carregar_neocortex()
 
-        # 3. CONTROLES DE ESTADO NIB
+        # 3. MEMÓRIA DE TRABALHO (Córtex Pré-Frontal - Contexto de Curto Prazo)
+        self.working_memory = WorkingMemory(capacity=getattr(config, "WORKING_MEMORY_CAPACITY", 6))
+
+        # 4. CONTROLES DE ESTADO E REGISTRO NIB
         self.learning_enabled = False  # Inicia desligado (OFF) por padrão
         self.personality_enabled = True # Inicia ligado (ON) por padrão
+        self.pruning_journal = []      # Registro de podas sinápticas
         self.wal_path = config.SYNAPTIC_JOURNAL
         self.ollama_url = config.OLLAMA_URL
         self.model_name = config.OLLAMA_MODEL
 
-        logger.log_nib("NIB INIT", f"Cérebro inicializado no Modo: [{self.memory_mode.upper()}]", logger.Colors.BRIGHT_CYAN)
+        logger.log_nib("NIB INIT", f"Cérebro inicializado no Modo: [{self.memory_mode.upper()}] | Working Memory Cap: {self.working_memory.capacity}", logger.Colors.BRIGHT_CYAN)
+
+
 
     def set_memory_mode(self, mode: str) -> str:
         """Alterna o comportamento do sistema entre 'human' e 'perfect'."""
@@ -62,6 +71,8 @@ class NeuroInformatikBrain:
         self.neocortex = nx.DiGraph()
         self._salvar_neocortex()
 
+        self.working_memory.clear()
+
         try:
             with open(self.wal_path, "w", encoding="utf-8") as f:
                 f.write("")
@@ -69,8 +80,22 @@ class NeuroInformatikBrain:
             pass
 
         logger.log_warning("=" * 60)
-        logger.log_warning("[NIB - REINÍCIO DE VIDA] Memória zerada! Hipocampo, Neocórtex e Diário limpos.")
+        logger.log_warning("[NIB - REINÍCIO DE VIDA] Memória zerada! Hipocampo, Neocórtex, Diário e Memória de Trabalho limpos.")
         logger.log_warning("=" * 60)
+
+    def obter_contexto_trabalho(self) -> str:
+        """Retorna o histórico de curto prazo formatado da Memória de Trabalho."""
+        return self.working_memory.get_context_str()
+
+    def registrar_interacao_trabalho(self, user_prompt: str, nib_response: str):
+        """Registra o turno atual na Memória de Trabalho."""
+        self.working_memory.add_interaction(user_prompt, nib_response)
+
+    def reset_memoria_trabalho(self):
+        """Esvazia o buffer de curto prazo (Memória de Trabalho)."""
+        self.working_memory.clear()
+        logger.log_nib("MEMÓRIA DE TRABALHO", "Buffer de curto prazo esvaziado com sucesso.", logger.Colors.BRIGHT_YELLOW)
+
 
     # --------------------------------------------------
     # NEOCÓRTEX (Grafo de Conexões)
@@ -88,23 +113,59 @@ class NeuroInformatikBrain:
         with open(self.neocortex_path, "w", encoding="utf-8") as f:
             json.dump(nx.node_link_data(self.neocortex), f, ensure_ascii=False, indent=2)
 
+    def normalizar_entidade(self, texto: str) -> str:
+        """
+        Normaliza e canoniza nomes de entidades no Neocórtex:
+        - Converte para minúsculas e remove acentos/diacríticos.
+        - Remove pontuação perimétrica e caracteres especiais.
+        - Remove artigos/conectivos insignificantes no início (ex: 'o python' -> 'python').
+        - Converte formas plurais simples para singular.
+        """
+        import re
+        import unicodedata
+
+        if not texto:
+            return ""
+
+        t = texto.strip().lower()
+        t = ''.join(c for c in unicodedata.normalize('NFKD', t) if not unicodedata.combining(c))
+        t = re.sub(r'[^a-z0-9\s\-]', '', t).strip()
+
+        t = re.sub(r'^(?:o|a|os|as|um|uma|uns|umas|do|da|dos|das|no|na|nos|nas)\s+', '', t).strip()
+
+        if len(t) > 4 and t.endswith('s') and not t.endswith('ss') and not t.endswith('is'):
+            if t.endswith('oes'):
+                t = t[:-3] + 'ao'
+            elif t.endswith('aes'):
+                t = t[:-3] + 'ao'
+            elif t.endswith('ais') or t.endswith('eis') or t.endswith('ois'):
+                t = t[:-2] + 'l'
+            elif not t.endswith('os') or len(t) > 5:
+                t = t[:-1]
+
+        return t.strip()
+
     def consolidar_sinapse(self, sujeito: str, relacao: str, objeto: str, timestamp: int):
-        s, r, o = sujeito.strip().lower(), relacao.strip().lower(), objeto.strip().lower()
-        if not s or not o: 
+        s_norm = self.normalizar_entidade(sujeito)
+        o_norm = self.normalizar_entidade(objeto)
+        r = relacao.strip().lower()
+
+        if not s_norm or not o_norm: 
             return
         
-        self.neocortex.add_node(s, label=s)
-        self.neocortex.add_node(o, label=o)
+        self.neocortex.add_node(s_norm, label=s_norm)
+        self.neocortex.add_node(o_norm, label=o_norm)
         
-        if self.neocortex.has_edge(s, o):
-            self.neocortex[s][o]["weight"] = self.neocortex[s][o].get("weight", 1) + 1
-            self.neocortex[s][o]["updated_at"] = timestamp
-            logger.log_neocortex(f"[Reforço] Sinapse: ({s}) --[{r}]--> ({o}) | Peso: {self.neocortex[s][o]['weight']}")
+        if self.neocortex.has_edge(s_norm, o_norm):
+            self.neocortex[s_norm][o_norm]["weight"] = self.neocortex[s_norm][o_norm].get("weight", 1) + 1
+            self.neocortex[s_norm][o_norm]["updated_at"] = timestamp
+            logger.log_neocortex(f"[Reforço] Sinapse: ({s_norm}) --[{r}]--> ({o_norm}) | Peso: {self.neocortex[s_norm][o_norm]['weight']}")
         else:
-            self.neocortex.add_edge(s, o, relacao=r, created_at=timestamp, updated_at=timestamp, weight=1)
-            logger.log_neocortex(f"[Nova Sinapse]: ({s}) --[{r}]--> ({o})")
+            self.neocortex.add_edge(s_norm, o_norm, relacao=r, created_at=timestamp, updated_at=timestamp, weight=1)
+            logger.log_neocortex(f"[Nova Sinapse]: ({s_norm}) --[{r}]--> ({o_norm})")
             
         self._salvar_neocortex()
+
 
     # --------------------------------------------------
     # --------------------------------------------------
@@ -326,13 +387,49 @@ class NeuroInformatikBrain:
         if not resultados:
             return "Nenhuma informação externa encontrada."
 
-        conteudo = "\n".join(resultados)
+        conteudo_bruto = "\n".join(resultados)
+
+        # Resumo sintético da web para remover ruído antes de indexar no ChromaDB
+        if getattr(config, "ENABLE_WEB_SUMMARIZATION", True):
+            conteudo = self.resumir_conhecimento_externo(termo_limpo, conteudo_bruto)
+        else:
+            conteudo = conteudo_bruto
         
         # Salva o aprendizado na memória
         id_novo = f"ext_mem_{int(time.time())}"
         self.memorizar_experiencia(f"Conhecimento pesquisado sobre '{termo_limpo}': {conteudo}")
         
         return conteudo
+
+    def resumir_conhecimento_externo(self, consulta: str, texto_bruto: str) -> str:
+        """Resume e sintetiza o conteúdo capturado da web para remover ruído antes da indexação no ChromaDB."""
+        if not texto_bruto or len(texto_bruto.strip()) < 120:
+            return texto_bruto
+
+        logger.log_nib("SISTEMA NIB", f"Sintetizando e resumindo conteúdo web para '{consulta}'...", logger.Colors.BRIGHT_MAGENTA)
+        sys_p = (
+            "Você é um sintetizador de conhecimento objetivo. "
+            "Extraia os principais fatos, definições e respostas relevantes para a pesquisa. "
+            "Resuma em um texto conciso, direto e limpo em Português sem formatação desnecessária ou opiniões."
+        )
+        try:
+            resp = httpx.post(self.ollama_url, json={
+                "model": self.model_name,
+                "prompt": f"Consulta do Usuário: '{consulta}'\n\nConteúdo Bruto Capturado:\n{texto_bruto[:2500]}",
+                "system": sys_p,
+                "stream": False,
+                "options": {"temperature": 0.2}
+            }, timeout=15.0)
+            r = resp.json().get("response", "").strip()
+
+            if r:
+                return r
+        except Exception as e:
+            logger.log_warning(f"Falha ao resumir conhecimento externo: {e}")
+
+        return texto_bruto[:1000]
+
+
 
     # --------------------------------------------------
     # PODA SINÁPTICA HEBBIANA (MODO HUMANO)
@@ -363,7 +460,15 @@ class NeuroInformatikBrain:
                 
                 if retencao < limiar_corte:
                     ids_para_remover.append(m_id)
-                    logger.log_poda(f"Memória episódica '{todas_memorias['documents'][i][:60]}...' caducou (Retenção R={retencao:.2f}).")
+                    doc_snippet = todas_memorias['documents'][i][:60]
+                    logger.log_poda(f"Memória episódica '{doc_snippet}...' caducou (Retenção R={retencao:.2f}).")
+                    self.pruning_journal.append({
+                        "tipo": "episodica",
+                        "id": m_id,
+                        "conteudo": doc_snippet,
+                        "retencao": round(retencao, 3),
+                        "timestamp": agora
+                    })
                     
             if ids_para_remover:
                 self.hipocampo.delete(ids=ids_para_remover)
@@ -381,11 +486,65 @@ class NeuroInformatikBrain:
             
             if retencao < limiar_corte:
                 arestas_para_remover.append((u, v))
+                rel = data.get("relacao", "conectado_a")
                 logger.log_poda(f"Conexão no Neocórtex podada: ({u}) -> ({v})")
+                self.pruning_journal.append({
+                    "tipo": "relacional",
+                    "conteudo": f"{u} --({rel})--> {v}",
+                    "retencao": round(retencao, 3),
+                    "timestamp": agora
+                })
                 
         for u, v in arestas_para_remover:
             self.neocortex.remove_edge(u, v)
         self._salvar_neocortex()
+
+    def obter_estatisticas_memoria(self) -> dict:
+        """Retorna contadores e estatísticas da memória episódica, relacional e de curto prazo."""
+        total_episodios = 0
+        forca_media = 0.0
+        try:
+            mems = self.hipocampo.get(include=["metadatas"])
+            if mems and mems.get("ids"):
+                total_episodios = len(mems["ids"])
+                if mems.get("metadatas"):
+                    forcas = [m.get("forca_sinaptica", 1.5) for m in mems["metadatas"] if isinstance(m, dict)]
+                    if forcas:
+                        forca_media = round(sum(forcas) / len(forcas), 2)
+        except Exception:
+            pass
+
+        return {
+            "memory_mode": self.memory_mode,
+            "total_episodic_memories": total_episodios,
+            "neocortex_nodes": self.neocortex.number_of_nodes(),
+            "neocortex_edges": self.neocortex.number_of_edges(),
+            "average_synaptic_strength": forca_media,
+            "working_memory_capacity": self.working_memory.capacity,
+            "working_memory_size": len(self.working_memory.buffer),
+            "pruning_journal": self.pruning_journal[-20:]
+        }
+
+    def obter_dados_grafo(self) -> dict:
+        """Retorna o grafo de conhecimento (Neocórtex) estruturado para visualização interativa em frontend."""
+        nodes = []
+        edges = []
+        for n in self.neocortex.nodes():
+            nodes.append({"id": str(n), "label": str(n)})
+
+        for u, v, data in self.neocortex.edges(data=True):
+            rel = data.get("relacao", "conectado_a")
+            peso = round(data.get("peso", 1.0), 2)
+            edges.append({
+                "from": str(u),
+                "to": str(v),
+                "label": rel,
+                "weight": peso,
+                "title": f"Relação: {rel} | Peso: {peso}"
+            })
+
+        return {"nodes": nodes, "edges": edges}
+
 
     # --------------------------------------------------
     # GRAVAÇÃO DE EXPERIÊNCIAS
@@ -464,71 +623,110 @@ class NeuroInformatikBrain:
     # RESGATE DE MEMÓRIA
     # --------------------------------------------------
     def resgatar_memoria_relevante(self, consulta: str) -> str:
-        contexto = []
         agora = time.time()
         tag_modo = "MEMÓRIA HUMANA" if self.memory_mode == "human" else "MEMÓRIA PERFEITA"
-        
-        logger.log_nib(tag_modo, f"Consultando memória para: '{consulta}'", logger.Colors.BRIGHT_YELLOW if self.memory_mode == "human" else logger.Colors.BRIGHT_CYAN)
+        logger.log_nib(tag_modo, f"Consultando memória híbrida para: '{consulta}'", logger.Colors.BRIGHT_YELLOW if self.memory_mode == "human" else logger.Colors.BRIGHT_CYAN)
 
-        # 1. Consulta Episódica Vetorial no Hipocampo
+        w_vec = getattr(config, "HYBRID_RAG_VECTOR_WEIGHT", 0.6)
+        w_graph = getattr(config, "HYBRID_RAG_GRAPH_WEIGHT", 0.4)
+
+        candidatos_hibridos = []
+        ids_episodicos_acessados = []
+
+        # 1. RAG Vetorial (Hipocampo - ChromaDB)
         try:
-            res_vec = self.hipocampo.query(query_texts=[consulta], n_results=2)
+            res_vec = self.hipocampo.query(
+                query_texts=[consulta], 
+                n_results=3,
+                include=["documents", "metadatas", "distances"]
+            )
             if res_vec and res_vec.get("documents") and res_vec["documents"][0]:
                 for i, doc in enumerate(res_vec["documents"][0]):
                     m_id = res_vec["ids"][0][i]
-                    meta = res_vec["metadatas"][0][i]
+                    meta = res_vec["metadatas"][0][i] if res_vec.get("metadatas") else {}
+                    dist = res_vec["distances"][0][i] if (res_vec.get("distances") and res_vec["distances"][0]) else 1.0
 
-                    # Se estiver no MODO HUMANO, aplica REFORÇO SINÁPTICO por acesso!
-                    if self.memory_mode == "human":
-                        forca_atual = meta.get("forca_sinaptica", 1.5)
-                        nova_forca = forca_atual + 0.5
-                        acessos = meta.get("acessos", 1) + 1
-                        ts_criacao = meta.get("timestamp_criacao", agora)
-                        
-                        try:
-                            self.hipocampo.update(
-                                ids=[m_id],
-                                metadatas=[{
-                                    "timestamp_criacao": ts_criacao,
-                                    "ultimo_acesso": agora,
-                                    "forca_sinaptica": nova_forca,
-                                    "acessos": acessos
-                                }]
-                            )
-                            logger.log_reforco(f"Memória humana '{m_id}' reativada! Nova Força S={nova_forca:.1f}")
-                        except Exception:
-                            pass
+                    score_vec = 1.0 / (1.0 + dist)
+                    score_hibrido = w_vec * score_vec
 
-                    contexto.append(f"[Memória Episódica]: {doc}")
+                    candidatos_hibridos.append({
+                        "texto": f"[Memória Episódica]: {doc}",
+                        "score": score_hibrido,
+                        "tipo": "vetorial",
+                        "id": m_id,
+                        "meta": meta
+                    })
+                    ids_episodicos_acessados.append((m_id, meta))
         except Exception as e:
             logger.log_warning(f"Erro ao consultar Hipocampo: {e}")
 
-        # 2. Consulta Associativa no Neocórtex
+        # 2. RAG Relacional (Neocórtex - GraphRAG/NetworkX)
         palavras = [p.strip().lower() for p in consulta.split() if len(p) > 3]
         for p in palavras:
             if self.neocortex.has_node(p):
                 for vz in self.neocortex.neighbors(p):
                     edge = self.neocortex[p][vz]
                     rel = edge.get("relacao", "relacionado_a")
+                    peso = edge.get("peso", 1.0)
+                    score_graph = min(1.0, peso / 2.0)
+                    score_hibrido = w_graph * score_graph
 
-                    # Se estiver no MODO HUMANO, reforça o peso da aresta
                     if self.memory_mode == "human":
-                        edge["peso"] = edge.get("peso", 1.0) + 0.3
+                        step_graph = getattr(config, "GRAPH_REINFORCEMENT_STEP", 0.3)
+                        edge["peso"] = peso + step_graph
                         edge["ultimo_acesso"] = agora
 
-                    contexto.append(f"[Neocórtex]: {p} --({rel})--> {vz}")
+                    candidatos_hibridos.append({
+                        "texto": f"[Neocórtex]: {p} --({rel})--> {vz}",
+                        "score": score_hibrido,
+                        "tipo": "relacional"
+                    })
+
                 for ant in self.neocortex.predecessors(p):
                     edge = self.neocortex[ant][p]
                     rel = edge.get("relacao", "relacionado_a")
+                    peso = edge.get("peso", 1.0)
+                    score_graph = min(1.0, peso / 2.0)
+                    score_hibrido = w_graph * score_graph
 
                     if self.memory_mode == "human":
-                        edge["peso"] = edge.get("peso", 1.0) + 0.3
+                        step_graph = getattr(config, "GRAPH_REINFORCEMENT_STEP", 0.3)
+                        edge["peso"] = peso + step_graph
                         edge["ultimo_acesso"] = agora
 
-                    contexto.append(f"[Neocórtex]: {ant} --({rel})--> {p}")
+                    candidatos_hibridos.append({
+                        "texto": f"[Neocórtex]: {ant} --({rel})--> {p}",
+                        "score": score_hibrido,
+                        "tipo": "relacional"
+                    })
 
+        # Reforço sináptico no Modo Humano
         if self.memory_mode == "human":
+            step_episodic = getattr(config, "EPISODIC_REINFORCEMENT_STEP", 0.5)
+            for m_id, meta in ids_episodicos_acessados:
+                forca_atual = meta.get("forca_sinaptica", 1.5)
+                nova_forca = forca_atual + step_episodic
+                acessos = meta.get("acessos", 1) + 1
+
+                ts_criacao = meta.get("timestamp_criacao", agora)
+                try:
+                    self.hipocampo.update(
+                        ids=[m_id],
+                        metadatas=[{
+                            "timestamp_criacao": ts_criacao,
+                            "ultimo_acesso": agora,
+                            "forca_sinaptica": nova_forca,
+                            "acessos": acessos
+                        }]
+                    )
+                    logger.log_reforco(f"Memória humana '{m_id}' reativada! Nova Força S={nova_forca:.1f}")
+                except Exception:
+                    pass
             self._salvar_neocortex()
+
+        # Ordenação por Score Híbrido
+        candidatos_hibridos.sort(key=lambda x: x["score"], reverse=True)
+        contexto = [item["texto"] for item in candidatos_hibridos]
 
         # 3. Forçar Pesquisa Web em caso de Solicitação Explícita ou Correção do Usuário
         forcar_pesquisa = self.solicitou_pesquisa_ou_correcao(consulta)
@@ -545,4 +743,12 @@ class NeuroInformatikBrain:
             if conhecimento and "Nenhuma informação" not in conhecimento:
                 contexto.append(f"[Conhecimento Externo Adquirido]: {conhecimento}")
 
-        return "\n".join(list(set(contexto)))
+        # Remoção de duplicados preservando ordem de ranking
+        vistos = set()
+        contexto_unico = []
+        for item in contexto:
+            if item not in vistos:
+                vistos.add(item)
+                contexto_unico.append(item)
+
+        return "\n".join(contexto_unico)

@@ -1,9 +1,11 @@
 import os
 import json
 import requests
+import httpx
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
+
 
 import config
 import logger_nib as logger
@@ -67,6 +69,61 @@ async def prune_memory():
     
     nib.aplicar_esquecimento_hebbiano(limiar_corte=0.15)
     return {"status": "success", "message": "Poda sináptica executada com sucesso!"}
+
+
+@app.get("/api/working-memory")
+async def get_working_memory():
+    """Retorna o histórico mantido no buffer de curto prazo (Memória de Trabalho)."""
+    return {
+        "status": "success",
+        "capacity": nib.working_memory.capacity,
+        "size": len(nib.working_memory.buffer),
+        "history": nib.working_memory.to_list()
+    }
+
+
+@app.post("/api/clear-working-memory")
+async def clear_working_memory():
+    """Esvazia o buffer da Memória de Trabalho."""
+    nib.reset_memoria_trabalho()
+    return {"status": "success", "message": "Memória de trabalho limpa com sucesso!"}
+
+
+@app.get("/api/dashboard/stats")
+async def get_dashboard_stats():
+    """Retorna dados consolidados para o Dashboard Cognitivo (estatísticas de memória, podas e personalidade)."""
+    stats = nib.obter_estatisticas_memoria()
+    stats["status"] = "success"
+    stats["personality"] = {
+        "enabled": nib.personality_enabled,
+        "description": nib.active_personality.get_description() if hasattr(nib.active_personality, "get_description") else "",
+        "sliders": {
+            "o": getattr(nib.active_personality, "o_pct", 80),
+            "c": getattr(nib.active_personality, "c_pct", 90),
+            "e": getattr(nib.active_personality, "e_pct", 40),
+            "a": getattr(nib.active_personality, "a_pct", 70),
+            "n": getattr(nib.active_personality, "n_pct", 20),
+        }
+    }
+    stats["affective"] = {
+        "enabled": nib_affective.emotion_enabled,
+        "auto_mode": nib_affective.auto_mode,
+        "current_emotion": nib_affective.current_emotion,
+        "p": round(nib_affective.pleasure, 2),
+        "a": round(nib_affective.arousal, 2),
+        "d": round(nib_affective.dominance, 2)
+    }
+    return stats
+
+
+@app.get("/api/dashboard/graph")
+async def get_dashboard_graph():
+    """Retorna os nós e conexões do Neocórtex formatados para visualização interativa em grafo."""
+    graph_data = nib.obter_dados_grafo()
+    graph_data["status"] = "success"
+    return graph_data
+
+
 
 
 @app.post("/api/toggle-learning")
@@ -181,11 +238,12 @@ async def toggle_auto_emotion(request: Request):
 
 @app.get("/api/ollama-models")
 async def get_ollama_models():
-    """Busca a lista de modelos instalados diretamente no Ollama local."""
+    """Busca a lista de modelos instalados diretamente no Ollama local de forma assíncrona."""
     try:
-        resp = requests.get("http://localhost:11434/api/tags", timeout=3).json()
-        modelos = [m["name"] for m in resp.get("models", [])]
-        return {"status": "success", "models": modelos, "current": config.OLLAMA_MODEL}
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            resp = await client.get("http://localhost:11434/api/tags")
+            modelos = [m["name"] for m in resp.json().get("models", [])]
+            return {"status": "success", "models": modelos, "current": config.OLLAMA_MODEL}
     except Exception:
         return {"status": "error", "models": [config.OLLAMA_MODEL], "current": config.OLLAMA_MODEL}
 
@@ -202,7 +260,7 @@ async def set_ollama_model(request: Request):
 
 @app.get("/api/chat")
 async def chat_stream(prompt: str):
-    def generate():
+    async def generate():
         logger.log_nib("CHAT API", f"Nova interação recebida | Modo Memória: {nib.memory_mode.upper()}", logger.Colors.BRIGHT_MAGENTA)
         
         if nib_affective.auto_mode and nib_affective.emotion_enabled:
@@ -213,6 +271,7 @@ async def chat_stream(prompt: str):
             descoberta_autonoma = curiosity.investigar_lacunas()
 
         memoria_contexto = nib.resgatar_memoria_relevante(prompt)
+        contexto_trabalho = nib.obter_contexto_trabalho()
         
         instrucao_personalidade = nib.active_personality.build_system_instruction() if nib.personality_enabled else "Sua personalidade está desativada: responda de maneira neutra, clara e objetiva sem traços de personalidade marcantes."
         instrucao_humor = nib_affective.get_mood_instruction() if nib_affective.emotion_enabled else "Seu módulo emocional está desativado: mantenha um tom neutro e imparcial."
@@ -226,27 +285,33 @@ async def chat_stream(prompt: str):
             f"IMPORTANTE: NUNCA responda em formato JSON bruto e NUNCA envolva sua mensagem em chaves JSON como {{'resposta': ...}} ou estruturas de objeto."
         )
 
-        prompt_final = f"Contexto de Memória NIB ({nib.memory_mode.upper()}):\n{memoria_contexto}\n\nUsuário: {prompt}\nNIB:"
+        prompt_final = (
+            f"--- MEMÓRIA DE LONGO PRAZO ({nib.memory_mode.upper()}) ---\n{memoria_contexto}\n\n"
+            f"--- MEMÓRIA DE TRABALHO (DIÁLOGO RECENTE) ---\n{contexto_trabalho}\n\n"
+            f"Usuário: {prompt}\nNIB:"
+        )
 
         resposta_completa = ""
         try:
-            response = requests.post(config.OLLAMA_URL, json={
+            payload = {
                 "model": config.OLLAMA_MODEL,
                 "prompt": prompt_final,
                 "system": sys_prompt,
                 "stream": True,
                 "options": {"temperature": temp_dinamica}
-            }, stream=True, timeout=60)
-            response.raise_for_status()
-
-            for line in response.iter_lines():
-                if line:
-                    data = json.loads(line.decode('utf-8'))
-                    token = data.get("response", "")
-                    resposta_completa += token
-                    yield f"data: {json.dumps({'token': token})}\n\n"
+            }
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                async with client.stream("POST", config.OLLAMA_URL, json=payload) as response:
+                    response.raise_for_status()
+                    async for line in response.aiter_lines():
+                        if line:
+                            data = json.loads(line)
+                            token = data.get("response", "")
+                            resposta_completa += token
+                            yield f"data: {json.dumps({'token': token})}\n\n"
         except Exception as e:
-            if hasattr(e, 'response') and e.response is not None and e.response.status_code == 404:
+            status_code = getattr(getattr(e, 'response', None), 'status_code', None)
+            if status_code == 404:
                 err_msg = f"\n\n*[Erro no Ollama: O modelo '{config.OLLAMA_MODEL}' não está instalado. Selecione um modelo instalado na engrenagem ⚙️ ou execute 'ollama pull {config.OLLAMA_MODEL}']* "
             else:
                 err_msg = f"\n\n*[Erro de comunicação com o Ollama: {str(e)}. Verifique se o Ollama está rodando em http://localhost:11434]*"
@@ -255,7 +320,10 @@ async def chat_stream(prompt: str):
             return
 
         if resposta_completa.strip():
+            nib.registrar_interacao_trabalho(prompt, resposta_completa)
             nib.memorizar_experiencia(f"Usuário: '{prompt}' | NIB: '{resposta_completa}'")
+
+
         
         if descoberta_autonoma:
             conceito_nome = descoberta_autonoma.get("conceito") or descoberta_autonoma.get("tema", "Criatividade Autônoma")

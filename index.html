@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NIB - Neuro-Informatik Brain</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css">
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+
     <style>
         :root {
             --bg-color: #0f172a;
@@ -146,14 +148,114 @@
             flex: 1; padding: 0.4rem; border: none; border-radius: 4px;
             color: white; cursor: pointer; font-size: 0.75rem; font-weight: bold;
         }
+
+        /* ESTILOS DO DASHBOARD COGNITIVO */
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(4px);
+            z-index: 1000; align-items: center; justify-content: center;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal-content {
+            background: var(--sidebar-bg); border: 1px solid var(--border-color);
+            border-radius: 12px; width: 92%; max-width: 1050px; height: 88vh;
+            display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 30px -5px rgba(0,0,0,0.6);
+        }
+        .modal-header {
+            padding: 1rem 1.5rem; background: var(--card-bg); border-bottom: 1px solid var(--border-color);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-header h2 { margin: 0; font-size: 1.15rem; color: var(--accent-color); display: flex; align-items: center; gap: 0.5rem; }
+        .modal-nav {
+            display: flex; gap: 0.5rem; padding: 0.6rem 1.5rem; background: #0f172a; border-bottom: 1px solid var(--border-color);
+        }
+        .tab-btn {
+            background: transparent; border: 1px solid transparent; color: #94a3b8; padding: 0.45rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: bold; transition: all 0.2s;
+        }
+        .tab-btn.active { background: var(--card-bg); color: var(--accent-color); border-color: var(--border-color); }
+        .modal-body { flex: 1; overflow-y: auto; padding: 1.5rem; }
+        .tab-pane { display: none; }
+        .tab-pane.active { display: block; }
+        .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+        .stat-card { background: var(--card-bg); padding: 1.2rem; border-radius: 8px; border: 1px solid var(--border-color); text-align: center; }
+        .stat-card .num { font-size: 2rem; font-weight: bold; color: var(--accent-color); margin-top: 0.3rem; }
+        .stat-card .label { font-size: 0.8rem; color: #94a3b8; margin-top: 0.2rem; }
+        #network-graph { width: 100%; height: 520px; background: #0b0f19; border-radius: 8px; border: 1px solid var(--border-color); }
     </style>
 </head>
 <body>
 
     <header>
         <h1>🧠 NIB (Neuro-Informatik Brain)</h1>
-        <button class="settings-btn" id="open-sidebar-btn" title="Configurações Límbicas e Personalidade">⚙️</button>
+        <div style="display: flex; gap: 0.6rem; align-items: center;">
+            <button id="open-dashboard-btn" style="background: #0284c7; color: white; border: none; padding: 0.45rem 0.9rem; border-radius: 6px; font-weight: bold; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 0.4rem; transition: background 0.2s;">
+                📊 Dashboard Cognitivo
+            </button>
+            <button class="settings-btn" id="open-sidebar-btn" title="Configurações Límbicas e Personalidade">⚙️</button>
+        </div>
     </header>
+
+    <!-- MODAL DO DASHBOARD COGNITIVO -->
+    <div class="modal-overlay" id="dashboard-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📊 Dashboard Cognitivo NIB</h2>
+                <button class="close-sidebar-btn" id="close-dashboard-btn">✕</button>
+            </div>
+            <div class="modal-nav">
+                <button class="tab-btn active" data-tab="tab-stats">📊 Estatísticas da Mente</button>
+                <button class="tab-btn" data-tab="tab-graph">🕸️ Grafo do Neocórtex</button>
+                <button class="tab-btn" data-tab="tab-pruning">🍂 Histórico de Podas</button>
+            </div>
+            <div class="modal-body">
+                <!-- TAB 1: ESTATÍSTICAS -->
+                <div class="tab-pane active" id="tab-stats">
+                    <div class="stat-grid">
+                        <div class="stat-card">
+                            <div class="label">Memórias Episódicas (Hipocampo)</div>
+                            <div class="num" id="stat-hipocampo">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="label">Nós no Neocórtex (Conceitos)</div>
+                            <div class="num" id="stat-nodes">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="label">Conexões no Neocórtex (Arestas)</div>
+                            <div class="num" id="stat-edges">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="label">Força Sináptica Média</div>
+                            <div class="num" id="stat-forca">0.0</div>
+                        </div>
+                    </div>
+                    <div style="background: var(--card-bg); padding: 1.2rem; border-radius: 8px; border: 1px solid var(--border-color);">
+                        <h3 style="margin-top: 0; color: var(--accent-color); font-size: 1rem;">🧠 Resumo do Estado Cognitivo</h3>
+                        <p id="stat-summary" style="font-size: 0.9rem; color: #cbd5e1; line-height: 1.5; margin-bottom: 0;"></p>
+                    </div>
+                </div>
+
+                <!-- TAB 2: GRAFO DO NEOCÓRTEX -->
+                <div class="tab-pane" id="tab-graph">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
+                        <span style="font-size: 0.85rem; color: #cbd5e1;">Rede de Conhecimento Associativo (GraphRAG / NetworkX)</span>
+                        <button id="refresh-graph-btn" style="background: #0284c7; color: white; border: none; padding: 0.35rem 0.7rem; border-radius: 4px; font-weight: bold; font-size: 0.75rem; cursor: pointer;">
+                            🔄 Atualizar Grafo
+                        </button>
+                    </div>
+                    <div id="network-graph"></div>
+                </div>
+
+                <!-- TAB 3: HISTÓRICO DE PODAS SINÁPTICAS -->
+                <div class="tab-pane" id="tab-pruning">
+                    <h3 style="margin-top: 0; color: #ea580c; font-size: 1rem;">🍂 Memórias e Conexões Podadas (Curva de Ebbinghaus)</h3>
+                    <div id="pruning-list" style="display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1rem;">
+                        <p style="color: #94a3b8; font-size: 0.85rem;">Nenhuma poda registrada nesta sessão.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
 
     <div id="main-wrapper">
         <div id="chat-container"></div>
@@ -747,6 +849,135 @@
 				alert('Erro ao reiniciar a vida do NIB: ' + err.message);
 			}
 		});
+
+		// LÓGICA DO DASHBOARD COGNITIVO E VISUALIZADOR DE GRAFO
+		const dashboardModal = document.getElementById('dashboard-modal');
+		const openDashboardBtn = document.getElementById('open-dashboard-btn');
+		const closeDashboardBtn = document.getElementById('close-dashboard-btn');
+		const refreshGraphBtn = document.getElementById('refresh-graph-btn');
+		let visNetworkInstance = null;
+
+		openDashboardBtn.addEventListener('click', () => {
+			dashboardModal.classList.add('open');
+			carregarEstatisticasDashboard();
+		});
+
+		closeDashboardBtn.addEventListener('click', () => {
+			dashboardModal.classList.remove('open');
+		});
+
+		// Troca de Abas no Dashboard
+		document.querySelectorAll('.tab-btn').forEach(btn => {
+			btn.addEventListener('click', (e) => {
+				document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+				document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+
+				e.target.classList.add('active');
+				const targetTab = e.target.getAttribute('data-tab');
+				document.getElementById(targetTab).classList.add('active');
+
+				if (targetTab === 'tab-graph') {
+					renderizarGrafoNeocortex();
+				}
+			});
+		});
+
+		async function carregarEstatisticasDashboard() {
+			try {
+				const resp = await fetch('/api/dashboard/stats');
+				const data = await resp.json();
+				if (data.status === 'success') {
+					document.getElementById('stat-hipocampo').textContent = data.total_episodic_memories;
+					document.getElementById('stat-nodes').textContent = data.neocortex_nodes;
+					document.getElementById('stat-edges').textContent = data.neocortex_edges;
+					document.getElementById('stat-forca').textContent = data.average_synaptic_strength;
+
+					const modo = data.memory_mode === 'human' ? 'Memória Humana (Sináptica)' : 'Memória Perfeita (Perpétua)';
+					const descPersona = data.personality ? data.personality.description : 'Padrão';
+					const estadoEmocional = data.affective ? `${data.affective.current_emotion} (P:${data.affective.p}, A:${data.affective.a}, D:${data.affective.d})` : 'Neutro';
+
+					document.getElementById('stat-summary').innerHTML = `
+						• <b>Modo de Memória:</b> ${modo}<br>
+						• <b>Capacidade de Curto Prazo (Working Memory):</b> ${data.working_memory_size} / ${data.working_memory_capacity} turnos ativos<br>
+						• <b>Estado Emocional (PAD):</b> ${estadoEmocional}<br>
+						• <b>Perfil de Personalidade:</b> ${descPersona}
+					`;
+
+					// Renderiza lista de podas sinápticas
+					const pruningContainer = document.getElementById('pruning-list');
+					if (data.pruning_journal && data.pruning_journal.length > 0) {
+						pruningContainer.innerHTML = data.pruning_journal.map(item => {
+							const dateStr = new Date(item.timestamp * 1000).toLocaleTimeString();
+							const icon = item.tipo === 'episodica' ? '🧠' : '🕸️';
+							return `
+								<div style="background: var(--card-bg); padding: 0.8rem; border-radius: 6px; border-left: 3px solid #ea580c; font-size: 0.85rem;">
+									<b>${icon} [${item.tipo.toUpperCase()}]</b> ${item.conteudo} 
+									<span style="color: #94a3b8; font-size: 0.75rem; float: right;">${dateStr} | Retenção: ${item.retencao}</span>
+								</div>
+							`;
+						}).join('');
+					} else {
+						pruningContainer.innerHTML = '<p style="color: #94a3b8; font-size: 0.85rem;">Nenhuma poda registrada nesta sessão (as podas ocorrem periodicamente no Modo Humano).</p>';
+					}
+				}
+			} catch (err) {
+				console.error('Erro ao carregar estatísticas do dashboard:', err);
+			}
+		}
+
+		async function renderizarGrafoNeocortex() {
+			const container = document.getElementById('network-graph');
+			container.innerHTML = '<div style="color: #94a3b8; padding: 2rem; text-align: center;">Carregando rede semântica do Neocórtex...</div>';
+
+			try {
+				const resp = await fetch('/api/dashboard/graph');
+				const data = await resp.json();
+				if (data.status === 'success') {
+					if (!data.nodes || data.nodes.length === 0) {
+						container.innerHTML = '<div style="color: #94a3b8; padding: 2rem; text-align: center;">O Neocórtex ainda não possui conexões suficientes para exibir no grafo. Conversas e aprendizados criarão conexões automaticamente!</div>';
+						return;
+					}
+
+					container.innerHTML = '';
+					const visNodes = new vis.DataSet(data.nodes.map(n => ({
+						id: n.id,
+						label: n.label,
+						shape: 'dot',
+						size: 16,
+						color: { background: '#38bdf8', border: '#0284c7' },
+						font: { color: '#f8fafc', size: 14 }
+					})));
+
+					const visEdges = new vis.DataSet(data.edges.map(e => ({
+						from: e.from,
+						to: e.to,
+						label: e.label,
+						arrows: 'to',
+						color: { color: '#475569', highlight: '#0284c7' },
+						font: { color: '#94a3b8', size: 10 }
+					})));
+
+					const graphData = { nodes: visNodes, edges: visEdges };
+					const options = {
+						physics: {
+							stabilization: true,
+							barnesHut: { gravitationalConstant: -3000, springLength: 95 }
+						},
+						interaction: { hover: true, tooltipDelay: 100 }
+					};
+
+					if (visNetworkInstance) visNetworkInstance.destroy();
+					visNetworkInstance = new vis.Network(container, graphData, options);
+				}
+			} catch (err) {
+				container.innerHTML = '<div style="color: #f87171; padding: 2rem; text-align: center;">Erro ao carregar grafo do Neocórtex.</div>';
+			}
+		}
+
+		refreshGraphBtn.addEventListener('click', () => {
+			renderizarGrafoNeocortex();
+		});
+
 		
     </script>
 </body>

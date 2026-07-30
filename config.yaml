@@ -1,0 +1,25 @@
+# ==========================================
+# PARÂMETROS COGNITIVOS E BIOLÓGICOS DO NIB
+# ==========================================
+
+# Buffer de Curto Prazo (Córtex Pré-Frontal)
+working_memory_capacity: 6
+
+# RAG Híbrido (Ponderação Hipocampo vs Neocórtex)
+hybrid_rag:
+  vector_weight: 0.6
+  graph_weight: 0.4
+
+# Poda Sináptica e Reforço Hebbiano (Curva de Ebbinghaus)
+hebbian_pruning:
+  threshold: 0.15
+  episodic_reinforcement_step: 0.5
+  graph_reinforcement_step: 0.3
+
+# Temperatura e Comportamento
+temperature:
+  default: 0.4
+
+# Processamento de Pesquisa Externa
+web_summarization:
+  enabled: true

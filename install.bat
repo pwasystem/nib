@@ -1,1 +1,1 @@
-pip install fastapi uvicorn requests chromadb networkx beautifulsoup4
+pip install -r requirements.txt

@@ -13,9 +13,11 @@ memoria_hipocampo/
 memoria_perfeita_db/
 
 # Environment / IDE
+.env
 .venv/
 env/
 venv/
 .vscode/
 .idea/
 *.log
+
