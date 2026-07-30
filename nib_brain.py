@@ -5,6 +5,8 @@ import time
 import requests
 import httpx
 import urllib.parse
+import tempfile
+import threading
 
 import chromadb
 import networkx as nx
@@ -23,6 +25,7 @@ class NeuroInformatikBrain:
     """
     def __init__(self):
         self.memory_mode = getattr(config, "DEFAULT_MEMORY_MODE", "human")
+        self._neocortex_lock = threading.Lock()
         
         # 1. HIPOCAMPO (Memória Episódica - Vetores/ChromaDB)
         self.chroma_client = chromadb.PersistentClient(path=config.HIPPOCAMPUS_DIR)
@@ -32,6 +35,7 @@ class NeuroInformatikBrain:
         self.neocortex_path = config.NEOCORTEX_FILE
         self.neocortex = nx.DiGraph()
         self._carregar_neocortex()
+
 
         # 3. MEMÓRIA DE TRABALHO (Córtex Pré-Frontal - Contexto de Curto Prazo)
         self.working_memory = WorkingMemory(capacity=getattr(config, "WORKING_MEMORY_CAPACITY", 6))
@@ -97,21 +101,38 @@ class NeuroInformatikBrain:
         logger.log_nib("MEMÓRIA DE TRABALHO", "Buffer de curto prazo esvaziado com sucesso.", logger.Colors.BRIGHT_YELLOW)
 
 
-    # --------------------------------------------------
-    # NEOCÓRTEX (Grafo de Conexões)
-    # --------------------------------------------------
     def _carregar_neocortex(self):
-        if os.path.exists(self.neocortex_path):
-            try:
-                with open(self.neocortex_path, "r", encoding="utf-8") as f:
-                    self.neocortex = nx.node_link_graph(json.load(f))
-                logger.log_neocortex(f"Neocórtex carregado do disco: {len(self.neocortex.nodes)} nós, {len(self.neocortex.edges)} arestas.")
-            except Exception:
+        with self._neocortex_lock:
+            if os.path.exists(self.neocortex_path):
+                try:
+                    with open(self.neocortex_path, "r", encoding="utf-8") as f:
+                        self.neocortex = nx.node_link_graph(json.load(f))
+                    logger.log_neocortex(f"Neocórtex carregado do disco: {len(self.neocortex.nodes)} nós, {len(self.neocortex.edges)} arestas.")
+                except Exception as e:
+                    logger.log_warning(f"Erro ao carregar Neocórtex: {e}. Criando grafo limpo e preservando cópia de recuperação.")
+                    try:
+                        backup = self.neocortex_path + ".corrupted"
+                        os.replace(self.neocortex_path, backup)
+                    except Exception:
+                        pass
+                    self.neocortex = nx.DiGraph()
+            else:
                 self.neocortex = nx.DiGraph()
 
     def _salvar_neocortex(self):
-        with open(self.neocortex_path, "w", encoding="utf-8") as f:
-            json.dump(nx.node_link_data(self.neocortex), f, ensure_ascii=False, indent=2)
+        with self._neocortex_lock:
+            try:
+                dir_name = os.path.dirname(os.path.abspath(self.neocortex_path))
+                os.makedirs(dir_name, exist_ok=True)
+
+                with tempfile.NamedTemporaryFile("w", dir=dir_name, delete=False, encoding="utf-8") as tf:
+                    json.dump(nx.node_link_data(self.neocortex), tf, ensure_ascii=False, indent=2)
+                    temp_name = tf.name
+
+                os.replace(temp_name, self.neocortex_path)
+            except Exception as e:
+                logger.log_warning(f"Erro ao salvar Neocórtex atômico: {e}")
+
 
     def normalizar_entidade(self, texto: str) -> str:
         """
