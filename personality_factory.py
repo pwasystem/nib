@@ -3,6 +3,7 @@ from personalities.custom_slider import CustomSliderPersonalityTemplate
 from personalities.templates.zodiac_template import ZodiacTemplate
 from personalities.templates.chinese_template import ChineseMatrixTemplate
 from personalities.templates.preset_templates import PresetArchetypeTemplate
+from personalities.templates.custom_manager import CustomPersonalityTemplate, CustomPersonalityStore
 from personalities.chinese_matrix import ChineseMatrix60
 
 class PersonalityFactory:
@@ -22,6 +23,20 @@ class PersonalityFactory:
                 a_pct=float(kwargs.get("a_pct", 70)),
                 n_pct=float(kwargs.get("n_pct", 20))
             )
+
+        if t_type == "custom":
+            t_id = kwargs.get("preset_key") or kwargs.get("id") or kwargs.get("template_id")
+            store = CustomPersonalityStore.load_all()
+            if t_id and t_id in store:
+                data = store[t_id]
+                return CustomPersonalityTemplate(
+                    template_id=t_id,
+                    name=data.get("name", "Custom"),
+                    description=data.get("description", ""),
+                    ocean=data.get("ocean", {}),
+                    pad=data.get("pad", {}),
+                    interests=data.get("interests", [])
+                )
 
         if t_type == "zodiac":
             signo = kwargs.get("signo") or kwargs.get("name") or "Virgem"
@@ -54,7 +69,21 @@ class PersonalityFactory:
                 "id": key,
                 "type": "preset",
                 "name": pinfo["name"],
-                "description": pinfo["desc"]
+                "description": pinfo["desc"],
+                "interests": pinfo.get("interests", [])
+            })
+
+        custom_store = CustomPersonalityStore.load_all()
+        custom_list = []
+        for cid, cinfo in custom_store.items():
+            custom_list.append({
+                "id": cid,
+                "type": "custom",
+                "name": cinfo["name"],
+                "description": cinfo.get("description", ""),
+                "ocean": cinfo.get("ocean", {}),
+                "pad": cinfo.get("pad", {}),
+                "interests": cinfo.get("interests", [])
             })
 
         zodiac_list = []
@@ -65,7 +94,8 @@ class PersonalityFactory:
                 "type": "zodiac",
                 "signo": signo,
                 "name": f"Zodíaco - {signo}",
-                "description": zt.get_description()
+                "description": zt.get_description(),
+                "interests": zt.get_interests()
             })
 
         chinese_list = []
@@ -77,10 +107,12 @@ class PersonalityFactory:
                 "animal": anim,
                 "elemento": elem,
                 "name": f"Chinês - {anim.capitalize()} de {elem.capitalize()}",
-                "description": ct.get_description()
+                "description": ct.get_description(),
+                "interests": ct.get_interests()
             })
 
         return {
+            "custom": custom_list,
             "presets": presets,
             "zodiac": zodiac_list,
             "chinese_matrix": chinese_list

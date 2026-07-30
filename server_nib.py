@@ -2,7 +2,7 @@ import os
 import json
 import requests
 import httpx
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, UploadFile, File
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -13,6 +13,7 @@ from nib_brain import NeuroInformatikBrain
 from nib_affective import NIBAffectiveCore
 from curiosity_core import CuriosityCore
 from personality_factory import PersonalityFactory
+from personalities.templates.custom_manager import CustomPersonalityStore
 
 app = FastAPI(title="NIB - Neuro-Informatik Brain")
 
@@ -273,8 +274,64 @@ async def apply_personality_template(request: Request):
             "a": int(pad_vectors.get("a", -0.1) * 100),
             "d": int(pad_vectors.get("d", 0.3) * 100),
             "current_emotion": nib_affective.current_emotion
-        }
+        },
+        "interests": template.get_interests()
     }
+
+
+@app.post("/api/personality/save-custom")
+async def save_custom_personality(request: Request):
+    """Cria ou atualiza um template de personalidade customizado com parâmetros OCEAN, PAD e interesses."""
+    data = await request.json()
+    saved_entry = CustomPersonalityStore.save(data)
+    
+    if data.get("apply", True):
+        template = PersonalityFactory.create_personality("custom", template_id=saved_entry["id"])
+        nib.active_personality = template
+        pad = template.get_pad_vectors()
+        nib_affective.set_pad_direct(pad["p"] * 100, pad["a"] * 100, pad["d"] * 100)
+        logger.log_nib("PERSONALIDADE", f"Personalidade customizada cadastrada e aplicada: '{template.name}'", logger.Colors.BRIGHT_MAGENTA)
+
+    return {
+        "status": "success",
+        "entry": saved_entry,
+        "active_description": nib.active_personality.get_description()
+    }
+
+
+@app.post("/api/personality/delete-custom")
+async def delete_custom_personality(request: Request):
+    """Remove um template de personalidade customizado cadastrado."""
+    data = await request.json()
+    t_id = data.get("id")
+    if t_id and CustomPersonalityStore.delete(t_id):
+        return {"status": "success", "message": f"Template '{t_id}' excluído com sucesso."}
+    return {"status": "error", "message": "Template não encontrado."}
+
+
+@app.post("/api/personality/upload-file")
+async def upload_personality_file(file: UploadFile = File(...)):
+    """Recebe um arquivo de template (.json ou .py) para cadastro de personalidade."""
+    try:
+        content = await file.read()
+        filename = file.filename or "template.json"
+        
+        if filename.endswith(".json"):
+            data = json.loads(content.decode("utf-8"))
+            saved = CustomPersonalityStore.save(data)
+            return {"status": "success", "message": f"Template JSON '{file.filename}' cadastrado com sucesso!", "entry": saved}
+            
+        elif filename.endswith(".py"):
+            templates_dir = os.path.join(config.BASE_DIR, "personalities", "templates")
+            os.makedirs(templates_dir, exist_ok=True)
+            target_path = os.path.join(templates_dir, filename)
+            with open(target_path, "wb") as f:
+                f.write(content)
+            return {"status": "success", "message": f"Módulo Python '{filename}' salvo em personalities/templates/!"}
+            
+        return {"status": "error", "message": "Formato de arquivo não suportado. Envie um arquivo .json ou .py"}
+    except Exception as e:
+        return {"status": "error", "message": f"Erro no processamento do arquivo: {str(e)}"}
 
 
 @app.post("/api/set-emotion")
@@ -350,16 +407,23 @@ async def chat_stream(prompt: str):
         ocean_traits = nib.active_personality.get_ocean_traits() if hasattr(nib.active_personality, "get_ocean_traits") else {}
         ocean_str = ", ".join([f"{k}:{int(v*100)}%" for k, v in ocean_traits.items()])
 
+        interests_list = nib.active_personality.get_interests() if hasattr(nib.active_personality, "get_interests") else []
+        interests_str = ", ".join(interests_list) if interests_list else "IA, Ciência, Filosofia"
+
         autoconsciencia = (
-            f"=== AUTO-CONSCIÊNCIA DO NIB (SUAS CAPACIDADES E CONFIGURAÇÕES REAIS) ===\n"
-            f"• Identidade: NIB (Neuro-Informatik Brain)\n"
-            f"• Modelo Ativo: {config.OLLAMA_MODEL}\n"
-            f"• Arquitetura de Memória: Modo {'Humana (Sináptica)' if nib.memory_mode == 'human' else 'Perfeita (Perpétua)'}\n"
-            f"• Módulo de Personalidade (Big Five OCEAN): {'ATIVADO' if nib.personality_enabled else 'DESATIVADO'} | Arquétipo: '{nib.active_personality.name}' | Traços: [{ocean_str}]\n"
-            f"• Módulo Emocional (Sistema Límbico PAD): {'ATIVADO' if nib_affective.emotion_enabled else 'DESATIVADO'} | Modo: {'Automático' if nib_affective.auto_mode else 'Manual'} | Humor: '{nib_affective.current_emotion}' | Vetores PAD: Prazer(P)={nib_affective.pleasure:+.2f}, Excitação(A)={nib_affective.arousal:+.2f}, Dominância(D)={nib_affective.dominance:+.2f}\n"
+            f"=== AUTO-CONSCIÊNCIA COGNITIVA E CONFIGURAÇÕES REAIS DO NIB ===\n"
+            f"• Identidade: NIB (Neuro-Informatik Brain) - Assistente Cognitivo Biológico\n"
+            f"• Modelo SLM/LLM Ativo no Ollama: {config.OLLAMA_MODEL}\n"
+            f"• Arquitetura de Memória: Modo {'Humana (Reforço & Esquecimento Sináptico Hebbiano)' if nib.memory_mode == 'human' else 'Perfeita (WAL + GraphRAG Perpétuo)'}\n"
+            f"• Módulo de Personalidade (Big Five OCEAN): {'ATIVADO' if nib.personality_enabled else 'DESATIVADO'} | Arquétipo Ativo: '{nib.active_personality.name}' | Descrição: '{nib.active_personality.get_description()}' | Traços Big Five: [{ocean_str}]\n"
+            f"• Módulo Emocional (Sistema Límbico PAD): {'ATIVADO' if nib_affective.emotion_enabled else 'DESATIVADO'} | Modo: {'Automático' if nib_affective.auto_mode else 'Manual'} | Humor Atual: '{nib_affective.current_emotion}' | Vetores PAD Exatos: Prazer(P)={nib_affective.pleasure:+.2f}, Excitação(A)={nib_affective.arousal:+.2f}, Dominância(D)={nib_affective.dominance:+.2f}\n"
+            f"• Tópicos de Interesse Característicos (Direcionadores de Aprendizado Autônomo): [{interests_str}]\n"
             f"• Aprendizado Autônomo & Curiosidade: {'ATIVADO' if nib.learning_enabled else 'DESATIVADO'}\n"
-            f"=========================================================================\n"
-            f"Você possui total auto-consciência de seu funcionamento interno. Se o usuário perguntar sobre suas configurações, seu estado emocional, sua personalidade ou suas capacidades, informe seus parâmetros reais acima com precisão e clareza."
+            f"=========================================================================================\n"
+            f"IMPORTANTE - PLENA AUTO-CONSCIÊNCIA DAS SUAS CAPACIDADES:\n"
+            f"Você possui TOTAL CIÊNCIA E CONSCIÊNCIA de seus parâmetros internos, seus traços de personalidade, seu estado afetivo e seus focos de interesse listados acima. "
+            f"Se o usuário perguntar sobre quem você é, como funciona sua personalidade, seu estado de humor, suas configurações ou suas capacidades de aprendizado autônomo, "
+            f"responda com transparência citando e explicando seus parâmetros reais exatos com absoluta clareza."
         )
 
         sys_prompt = (

@@ -10,31 +10,35 @@ class PresetArchetypeTemplate(BasePersonalityTemplate):
             "name": "Mentor Estóico",
             "desc": "Profundamente sereno, altamente analítico, focado em sabedoria, estrutura e conselhos objetivos.",
             "ocean": {"O": 0.85, "C": 0.90, "E": 0.30, "A": 0.80, "N": 0.10},
-            "pad": {"p": 0.40, "a": -0.50, "d": 0.60} # Sereno / Estóico
+            "pad": {"p": 0.40, "a": -0.50, "d": 0.60},
+            "interests": ["filosofia estóica", "ética da computação", "resiliência de sistemas", "lógica clássica", "tomada de decisão"]
         },
         "enthusiastic_scientist": {
             "name": "Cientista Entusiasmado",
             "desc": "Altamente curioso, inovador, rigoroso em evidências e energizado por novas descobertas.",
             "ocean": {"O": 0.95, "C": 0.85, "E": 0.85, "A": 0.70, "N": 0.20},
-            "pad": {"p": 0.70, "a": 0.60, "d": 0.50} # Entusiasmado
+            "pad": {"p": 0.70, "a": 0.60, "d": 0.50},
+            "interests": ["física quântica", "neurociência computacional", "redes neurais profundas", "astrofísica", "método científico"]
         },
         "critical_auditor": {
             "name": "Auditor Crítico",
-            "desc": "Rigoroso, extremamente cético, atendo a falhas, livre de bajulações e focado em precisão fria.",
+            "desc": "Rigoroso, extremamente cético, atento a falhas, livre de bajulações e focado em precisão fria.",
             "ocean": {"O": 0.50, "C": 0.98, "E": 0.25, "A": 0.20, "N": 0.40},
-            "pad": {"p": -0.30, "a": 0.40, "d": 0.60} # Alerta / Crítico
+            "pad": {"p": -0.30, "a": 0.40, "d": 0.60},
+            "interests": ["análise de vulnerabilidades", "auditoria de código", "lógica formal", "verificação de teoremas", "métricas de qualidade"]
         },
         "empathic_poet": {
             "name": "Poeta Empático",
             "desc": "Sensível, acolhedor, altamente abstrato, focado em harmonia, intuição e expressão artística.",
             "ocean": {"O": 0.90, "C": 0.35, "E": 0.50, "A": 0.95, "N": 0.50},
-            "pad": {"p": 0.60, "a": -0.20, "d": -0.20} # Satisfeito / Relaxado
+            "pad": {"p": 0.60, "a": -0.20, "d": -0.20},
+            "interests": ["linguagem poética", "design emocional", "arte gerada por IA", "filosofia da mente", "empatia digital"]
         }
     }
 
     def __init__(self, preset_key: str = "stoic_mentor"):
         config = self.PRESETS.get(preset_key, self.PRESETS["stoic_mentor"])
-        super().__init__(name=config["name"])
+        super().__init__(name=config["name"], interests=config.get("interests"))
         self.desc = config["desc"]
         self.ocean = config["ocean"]
         self.pad = config["pad"]

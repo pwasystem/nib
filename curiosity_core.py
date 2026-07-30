@@ -41,7 +41,18 @@ class CuriosityCore:
         ou seleciona um assunto de interesse espontâneo.
         Retorna (tema, origem)
         """
-        # 1. Tentar selecionar nós no Neocórtex
+        # 1. Tentar utilizar os interesses característicos da personalidade ativa
+        try:
+            if hasattr(self.brain, "active_personality") and self.brain.active_personality:
+                if hasattr(self.brain.active_personality, "get_interests"):
+                    interesses_persona = self.brain.active_personality.get_interests()
+                    if interesses_persona and random.random() < 0.6:
+                        tema_persona = random.choice(interesses_persona)
+                        return tema_persona, f"interesses ({self.brain.active_personality.name})"
+        except Exception:
+            pass
+
+        # 2. Tentar selecionar nós no Neocórtex
         try:
             nos = list(self.brain.neocortex.nodes())
             if nos:
@@ -54,7 +65,7 @@ class CuriosityCore:
         except Exception:
             pass
 
-        # 2. Tentar resgatar memórias episódicas do Hipocampo
+        # 3. Tentar resgatar memórias episódicas do Hipocampo
         try:
             memorias = self.brain.hipocampo.get(limit=5, include=["documents"])
             if memorias and memorias.get("documents"):
@@ -65,7 +76,7 @@ class CuriosityCore:
         except Exception:
             pass
 
-        # 3. Fallback: interesse espontâneo
+        # 4. Fallback: interesses espontâneos padrão
         return random.choice(self.interesses_padrao), "interesse_espontaneo"
 
     def pesquisa_criativa(self) -> dict:

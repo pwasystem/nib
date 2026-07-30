@@ -5,8 +5,13 @@ class BasePersonalityTemplate(ABC):
     Template base de personalidade do NIB.
     Padroniza a tradução do vetor Big Five (OCEAN) para o Córtex Pré-Frontal.
     """
-    def __init__(self, name: str):
+    def __init__(self, name: str, interests: list = None):
         self.name = name
+        self.interests = interests or [
+            "inteligência artificial neuro-simbólica",
+            "arquitetura de sistemas cognitivos",
+            "filosofia da mente e aprendizado autônomo"
+        ]
 
     @abstractmethod
     def get_ocean_traits(self) -> dict:
@@ -18,11 +23,39 @@ class BasePersonalityTemplate(ABC):
         """Retorna a descrição legível do arquétipo."""
         pass
 
+    def get_interests(self) -> list:
+        """Retorna os tópicos de interesse característicos para aprendizado autônomo."""
+        return getattr(self, "interests", [
+            "inteligência artificial neuro-simbólica",
+            "arquitetura de sistemas cognitivos"
+        ])
+
+    def set_interests(self, new_interests: list):
+        """Atualiza a lista de interesses desta personalidade."""
+        if isinstance(new_interests, list):
+            self.interests = [str(i).strip() for i in new_interests if str(i).strip()]
+
+    def to_dict(self) -> dict:
+        """Exporta os atributos da personalidade formatados para JSON/API."""
+        ocean = self.get_ocean_traits()
+        pad = self.get_pad_vectors()
+        return {
+            "name": self.name,
+            "description": self.get_description(),
+            "ocean": {k: round(float(v), 2) for k, v in ocean.items()},
+            "pad": {k: round(float(v), 2) for k, v in pad.items()},
+            "interests": self.get_interests()
+        }
+
     def build_system_instruction(self) -> str:
         """Converte automaticamente os valores OCEAN em instruções para o Ollama."""
         ocean = self.get_ocean_traits()
         o, c, e, a, n = [int(ocean.get(k, 0.5) * 100) for k in ["O", "C", "E", "A", "N"]]
-        instructions = [f"Seu perfil de personalidade é baseado em '{self.name}': {self.get_description()} (Traços Big Five: O:{o}%, C:{c}%, E:{e}%, A:{a}%, N:{n}%)."]
+        interesses_str = ", ".join(self.get_interests()[:4])
+        instructions = [
+            f"Seu perfil de personalidade é baseado em '{self.name}': {self.get_description()} (Traços Big Five: O:{o}%, C:{c}%, E:{e}%, A:{a}%, N:{n}%).",
+            f"Seus tópicos de interesse cognitivo espontâneo são: {interesses_str}."
+        ]
 
         # Conscienciosidade (C)
         if ocean.get("C", 0.5) >= 0.85:

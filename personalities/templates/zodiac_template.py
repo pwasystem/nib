@@ -21,9 +21,25 @@ class ZodiacTemplate(BasePersonalityTemplate):
         "Peixes":      {"p": 0.40, "a": -0.10, "d": -0.20}
     }
 
+    INTERESSES_SIGNOS = {
+        "Aries":       ["estratégia competitiva", "liderança de alto impacto", "inovação disruptiva", "gestão de crise"],
+        "Touro":       ["arquitetura de sistemas", "estabilidade de dados", "engenharia de confiabilidade", "ergonomia de software"],
+        "Gemeos":      ["comunicação multicanal", "linguística computacional", "redes de informação", "síntese de dados"],
+        "Cancer":      ["inteligência emocional", "design de experiência do usuário", "psicologia cognitiva", "memória episódica"],
+        "Leao":        ["liderança inspiradora", "design de marca", "apresentações de alto impacto", "criatividade em IA"],
+        "Virgem":      ["análise de dados", "otimização de código", "precisão sintática", "garantia de qualidade e testes"],
+        "Libra":       ["mediação e diplomacia", "ética em inteligência artificial", "design estético", "alinhamento de consenso"],
+        "Escorpiao":   ["cibersegurança", "criptografia avançada", "investigação forense de dados", "engenharia reversa"],
+        "Sagitario":   ["filosofia da tecnologia", "aprendizado por reforço", "exploração de conhecimento", "sistemas globais"],
+        "Capricornio": ["governança de ti", "métricas de desempenho", "gestão de projetos", "arquitetura empresarial"],
+        "Aquario":     ["tecnologias emergentes", "código aberto (open source)", "sistemas descentralizados", "futurismo tecnológico"],
+        "Peixes":      ["sintetizadores de arte", "intuição algorítmica", "computação quântica", "abstrações conceituais"]
+    }
+
     def __init__(self, signo: str = "Virgem"):
         self.zodiac_core = ZodiacPersonality(signo)
-        super().__init__(name=f"Zodíaco - {self.zodiac_core.signo}")
+        interests = self.INTERESSES_SIGNOS.get(self.zodiac_core.signo, ["pesquisa científica", "tecnologia"])
+        super().__init__(name=f"Zodíaco - {self.zodiac_core.signo}", interests=interests)
         self.pad = self.PAD_SIGNOS.get(self.zodiac_core.signo, {"p": 0.2, "a": -0.1, "d": 0.3})
 
     def get_ocean_traits(self) -> dict:

@@ -14,13 +14,31 @@ class ChineseMatrixTemplate(BasePersonalityTemplate):
         "madeira": {"p": 0.50, "a": 0.30, "d": 0.20}
     }
 
+    INTERESSES_ANIMALS = {
+        "rato":     ["estratégias de eficiência", "análise estatística", "gestão de recursos", "algoritmos de busca"],
+        "boi":      ["infraestrutura de ti", "bancos de dados relacionais", "segurança de dados", "automação industrial"],
+        "tigre":    ["computação de alta performance", "algoritmos paralelos", "startups de tecnologia", "redes neurais profundas"],
+        "coelho":   ["protocolos de comunicação", "interface humano-computador", "privacidade digital", "design intuitivo"],
+        "dragao":   ["visão computacional", "modelos de linguagem grandes (llms)", "sistemas distribuídos", "inovação em ia"],
+        "serpente": ["teoria dos jogos", "criptografia avançada", "otimização matemática", "análise preditiva"],
+        "cavalo":   ["processamento em tempo real", "edge computing", "sistemas móveis", "telemetria de alta velocidade"],
+        "cabra":    ["design generativo", "processamento de áudio e imagem", "sistemas colaborativos", "ergonomia cognitiva"],
+        "macaco":   ["solução criativa de problemas", "refatoração de código", "robótica adaptativa", "inteligência sintética"],
+        "galo":     ["análise estática de código", "testes automatizados", "documentação técnica", "auditoria de sistemas"],
+        "cao":      ["sistemas tolerantes a falhas", "redes descentralizadas", "autenticação de identidade", "monitoramento de logs"],
+        "porco":    ["integração contínua (ci/cd)", "gerenciamento de conhecimento", "desenvolvimento sustentável", "reuso de software"]
+    }
+
     def __init__(self, animal: str = "dragao", elemento: str = "madeira"):
         self.animal_raw = animal
         self.elemento_raw = elemento
         self.perfil = ChineseMatrix60.gerar_perfil(animal, elemento)
         
         nome_formatado = f"Matriz Chinesa - {animal.capitalize()} de {elemento.capitalize()}"
-        super().__init__(name=nome_formatado)
+        
+        anim_norm = ChineseMatrix60._normalizar(animal)
+        interests = self.INTERESSES_ANIMALS.get(anim_norm, ["estratégia tecnológica", "inovação"])
+        super().__init__(name=nome_formatado, interests=interests)
         
         elem_norm = ChineseMatrix60._normalizar(elemento)
         self.pad = self.MODIFICADORES_PAD_ELEMENTAIS.get(elem_norm, {"p": 0.3, "a": 0.1, "d": 0.2})
