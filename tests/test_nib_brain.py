@@ -65,5 +65,17 @@ class TestNeuroInformatikBrain(unittest.TestCase):
         self.assertIn("algoritmo", res)
         self.assertIn("codigo", res)
 
+    def test_eh_dialogo_informal(self):
+        self.assertTrue(self.brain.eh_dialogo_informal("quer ser meu amigo?"))
+        self.assertTrue(self.brain.eh_dialogo_informal("olá NIB tudo bem"))
+        self.assertFalse(self.brain.eh_dialogo_informal("o que é a teoria da relatividade geral?"))
+
+    def test_deduplicacao_memoria_trabalho(self):
+        self.brain.registrar_interacao_trabalho("quer ser meu amigo", "Claro! Podemos ser amigos.")
+        self.brain.hipocampo.add(documents=["Claro! Podemos ser amigos."], ids=["synapse_test_1"])
+        res = self.brain.resgatar_memoria_relevante("quer ser meu amigo")
+        # Deve omitir a memória episódica repetida que já está na memória de trabalho
+        self.assertNotIn("[Memória Episódica]: Claro! Podemos ser amigos.", res)
+
 if __name__ == "__main__":
     unittest.main()

@@ -640,6 +640,19 @@ class NeuroInformatikBrain:
                 return True
         return False
 
+    def eh_dialogo_informal(self, consulta: str) -> bool:
+        """Sinaliza se a mensagem é um diálogo social/informal (saudação, amizade, polidez)."""
+        c_lower = consulta.lower().strip()
+        gatilhos_informais = [
+            "olá", "ola", "oi", "oie", "tudo bem", "como vai", "boa tarde", "bom dia", "boa noite",
+            "amigo", "amiga", "amigos", "amizade", "quer ser meu", "seja meu", "você é meu", "voce e meu",
+            "quem é você", "quem e voce", "qual seu nome", "obrigado", "obrigada", "valeu", "tchau", "até logo"
+        ]
+        for g in gatilhos_informais:
+            if g in c_lower:
+                return True
+        return False
+
     # --------------------------------------------------
     # RESGATE DE MEMÓRIA
     # --------------------------------------------------
@@ -664,7 +677,7 @@ class NeuroInformatikBrain:
             if res_vec and res_vec.get("documents") and res_vec["documents"][0]:
                 for i, doc in enumerate(res_vec["documents"][0]):
                     m_id = res_vec["ids"][0][i]
-                    meta = res_vec["metadatas"][0][i] if res_vec.get("metadatas") else {}
+                    meta = (res_vec["metadatas"][0][i] if (res_vec.get("metadatas") and res_vec["metadatas"][0]) else {}) or {}
                     dist = res_vec["distances"][0][i] if (res_vec.get("distances") and res_vec["distances"][0]) else 1.0
 
                     score_vec = 1.0 / (1.0 + dist)
@@ -725,6 +738,7 @@ class NeuroInformatikBrain:
         if self.memory_mode == "human":
             step_episodic = getattr(config, "EPISODIC_REINFORCEMENT_STEP", 0.5)
             for m_id, meta in ids_episodicos_acessados:
+                meta = meta or {}
                 forca_atual = meta.get("forca_sinaptica", 1.5)
                 nova_forca = forca_atual + step_episodic
                 acessos = meta.get("acessos", 1) + 1
@@ -757,22 +771,27 @@ class NeuroInformatikBrain:
             if conhecimento and "Nenhuma informação" not in conhecimento:
                 contexto.append(f"[Conhecimento Atualizado via Pesquisa Web (Solicitado/Correção)]: {conhecimento}")
 
-        # 4. Tratamento de Lacuna de Conhecimento quando nada for encontrado na memória local
-        elif not contexto or len("\n".join(contexto).strip()) < 15:
+        # 4. Tratamento de Lacuna de Conhecimento quando nada for encontrado na memória local (ignora se for diálogo informal)
+        elif (not contexto or len("\n".join(contexto).strip()) < 15) and not self.eh_dialogo_informal(consulta):
             logger.log_nib("SISTEMA NIB", "Informação ausente na memória local. Disparando pesquisa externa em camadas (Acadêmica ➔ Notícias ➔ Tendências/Web)...", logger.Colors.BRIGHT_YELLOW)
             conhecimento = self.pesquisar_conhecimento_externo(consulta, apenas_academico=False)
             if conhecimento and "Nenhuma informação" not in conhecimento:
                 contexto.append(f"[Conhecimento Externo Adquirido]: {conhecimento}")
 
-        # Remoção de duplicados preservando ordem de ranking
+        # Remoção de duplicados preservando ordem de ranking e evitando redundância com a memória de trabalho
         vistos = set()
         contexto_unico = []
+        working_str = self.obter_contexto_trabalho().lower()
+
         for item in contexto:
+            item_clean = item.replace("[Memória Episódica]: ", "").replace("[Neocórtex]: ", "").strip().lower()
+            if item_clean in working_str:
+                continue
             if item not in vistos:
                 vistos.add(item)
                 contexto_unico.append(item)
 
-        return "\n".join(contexto_unico)
+        return "\n".join(contexto_unico) if contexto_unico else "Nenhuma memória relevante adicional."
 
     def consolidar_memorias(self) -> dict:
         """

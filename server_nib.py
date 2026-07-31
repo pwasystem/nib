@@ -1,5 +1,6 @@
 import os
 import json
+import asyncio
 import requests
 import httpx
 from fastapi import FastAPI, Request, UploadFile, File
@@ -547,7 +548,8 @@ async def chat_stream(prompt: str):
             f"{autoconsciencia}\n\n"
             f"DIRETRIZES DE COMPORTAMENTO E ATITUDE:\n"
             f"• {instrucao_personalidade}\n"
-            f"• {instrucao_humor}\n\n"
+            f"• {instrucao_humor}\n"
+            f"• Mantenha variações naturais e espontâneas de linguagem. NUNCA repita a mesma resposta palavra por palavra ou entre em loops de frases já ditas anteriormente.\n\n"
             f"Responda diretamente ao usuário em texto fluído, legível e bem formatado usando Markdown (títulos, tópicos, negrito e blocos de código quando apropriado). "
             f"IMPORTANTE: NUNCA responda em formato JSON bruto e NUNCA envolva sua mensagem em chaves JSON como {{'resposta': ...}} ou estruturas de objeto."
         )
@@ -565,7 +567,11 @@ async def chat_stream(prompt: str):
                 "prompt": prompt_final,
                 "system": sys_prompt,
                 "stream": True,
-                "options": {"temperature": temp_dinamica}
+                "options": {
+                    "temperature": temp_dinamica,
+                    "repeat_penalty": 1.18,
+                    "top_p": 0.9
+                }
             }
             async with httpx.AsyncClient(timeout=60.0) as client:
                 async with client.stream("POST", config.OLLAMA_URL, json=payload) as response:
@@ -576,14 +582,20 @@ async def chat_stream(prompt: str):
                             token = data.get("response", "")
                             resposta_completa += token
                             yield f"data: {json.dumps({'token': token})}\n\n"
+        except (asyncio.CancelledError, ConnectionResetError):
+            logger.log_nib("CHAT API", "Cliente desconectou do streaming SSE.", logger.Colors.YELLOW)
+            return
         except Exception as e:
             status_code = getattr(getattr(e, 'response', None), 'status_code', None)
             if status_code == 404:
                 err_msg = f"\n\n*[Erro no Ollama: O modelo '{config.OLLAMA_MODEL}' não está instalado. Selecione um modelo instalado na engrenagem ⚙️ ou execute 'ollama pull {config.OLLAMA_MODEL}']* "
             else:
                 err_msg = f"\n\n*[Erro de comunicação com o Ollama: {str(e)}. Verifique se o Ollama está rodando em http://localhost:11434]*"
-            yield f"data: {json.dumps({'token': err_msg})}\n\n"
-            yield "data: [DONE]\n\n"
+            try:
+                yield f"data: {json.dumps({'token': err_msg})}\n\n"
+                yield "data: [DONE]\n\n"
+            except Exception:
+                pass
             return
 
         if resposta_completa.strip():
@@ -608,6 +620,12 @@ async def chat_stream(prompt: str):
 
 
 if __name__ == "__main__":
+    import sys
     import uvicorn
+    
     logger.log_success(f"Iniciando servidor FastAPI NIB em http://{config.SERVER_HOST}:{config.SERVER_PORT}")
-    uvicorn.run(app, host=config.SERVER_HOST, port=config.SERVER_PORT)
+    try:
+        uvicorn.run("server_nib:app", host=config.SERVER_HOST, port=config.SERVER_PORT, reload=False)
+    except (KeyboardInterrupt, SystemExit):
+        logger.log_warning("\n[NIB SHUTDOWN] Servidor NIB encerrado com sucesso pelo usuário (Ctrl+C).")
+        sys.exit(0)
