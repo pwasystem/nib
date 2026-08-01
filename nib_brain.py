@@ -653,6 +653,26 @@ class NeuroInformatikBrain:
                 return True
         return False
 
+    def solicitou_aprendizado_ou_memoria(self, consulta: str) -> bool:
+        """Verifica se a consulta aborda o aprendizado, memórias, conversas passadas ou capacidades do NIB."""
+        c_lower = consulta.lower()
+        gatilhos = [
+            "o que você aprendeu", "o que voce aprendeu", "o que aprendeu",
+            "aprendeu algo", "aprendeu alguma", "aprendizado autônomo", "aprendizado autonomo",
+            "últimas descobertas", "ultimas descobertas", "o que você sabe", "o que voce sabe",
+            "sua memória", "sua memoria", "capacidade de aprender", "consegue aprender", "pode aprender",
+            "sabe aprender", "como funciona seu aprendizado",
+            "conversa passada", "conversas passadas", "conversa anterior", "conversas anteriores",
+            "já conversamos", "ja conversamos", "conversamos antes", "lembra de mim", "se lembra de mim",
+            "sessão anterior", "sessao anterior", "sessões passadas", "sessoes passadas",
+            "sessões anteriores", "sessoes anteriores", "o que conversamos", "nossa conversa",
+            "diálogo passado", "dialogo passado", "interação anterior", "interacao anterior"
+        ]
+        for g in gatilhos:
+            if g in c_lower:
+                return True
+        return False
+
     # --------------------------------------------------
     # RESGATE DE MEMÓRIA
     # --------------------------------------------------
@@ -669,28 +689,53 @@ class NeuroInformatikBrain:
 
         # 1. RAG Vetorial (Hipocampo - ChromaDB)
         try:
+            query_texts_busca = [consulta]
+            if self.solicitou_aprendizado_ou_memoria(consulta):
+                query_texts_busca.extend([
+                    "Aprendizado autônomo descobertas recentes",
+                    "Usuário NIB conversa diálogo interação passada"
+                ])
+
             res_vec = self.hipocampo.query(
-                query_texts=[consulta], 
+                query_texts=query_texts_busca, 
                 n_results=3,
                 include=["documents", "metadatas", "distances"]
             )
-            if res_vec and res_vec.get("documents") and res_vec["documents"][0]:
-                for i, doc in enumerate(res_vec["documents"][0]):
-                    m_id = res_vec["ids"][0][i]
-                    meta = (res_vec["metadatas"][0][i] if (res_vec.get("metadatas") and res_vec["metadatas"][0]) else {}) or {}
-                    dist = res_vec["distances"][0][i] if (res_vec.get("distances") and res_vec["distances"][0]) else 1.0
+            if res_vec and res_vec.get("documents"):
+                for g_idx, group in enumerate(res_vec["documents"]):
+                    for i, doc in enumerate(group):
+                        m_id = res_vec["ids"][g_idx][i] if (res_vec.get("ids") and len(res_vec["ids"]) > g_idx and len(res_vec["ids"][g_idx]) > i) else f"id_{i}"
+                        meta = (res_vec["metadatas"][g_idx][i] if (res_vec.get("metadatas") and len(res_vec["metadatas"]) > g_idx and len(res_vec["metadatas"][g_idx]) > i) else {}) or {}
+                        dist = res_vec["distances"][g_idx][i] if (res_vec.get("distances") and len(res_vec["distances"]) > g_idx and len(res_vec["distances"][g_idx]) > i) else 1.0
 
-                    score_vec = 1.0 / (1.0 + dist)
-                    score_hibrido = w_vec * score_vec
+                        score_vec = 1.0 / (1.0 + dist)
+                        score_hibrido = w_vec * score_vec
 
-                    candidatos_hibridos.append({
-                        "texto": f"[Memória Episódica]: {doc}",
-                        "score": score_hibrido,
-                        "tipo": "vetorial",
-                        "id": m_id,
-                        "meta": meta
-                    })
-                    ids_episodicos_acessados.append((m_id, meta))
+                        candidatos_hibridos.append({
+                            "texto": f"[Memória Episódica]: {doc}",
+                            "score": score_hibrido,
+                            "tipo": "vetorial",
+                            "id": m_id,
+                            "meta": meta
+                        })
+                        ids_episodicos_acessados.append((m_id, meta))
+
+            if self.solicitou_aprendizado_ou_memoria(consulta):
+                try:
+                    ultimas_mems = self.hipocampo.get(limit=5, include=["documents", "metadatas"])
+                    if ultimas_mems and ultimas_mems.get("documents"):
+                        for i, doc in enumerate(ultimas_mems["documents"]):
+                            m_id = ultimas_mems["ids"][i] if ultimas_mems.get("ids") else f"recent_{i}"
+                            meta = ultimas_mems["metadatas"][i] if (ultimas_mems.get("metadatas") and len(ultimas_mems["metadatas"]) > i) else {}
+                            candidatos_hibridos.append({
+                                "texto": f"[Memória Episódica Histórica]: {doc}",
+                                "score": 0.55,
+                                "tipo": "historico_recente",
+                                "id": m_id,
+                                "meta": meta
+                            })
+                except Exception:
+                    pass
         except Exception as e:
             logger.log_warning(f"Erro ao consultar Hipocampo: {e}")
 
@@ -784,14 +829,16 @@ class NeuroInformatikBrain:
         working_str = self.obter_contexto_trabalho().lower()
 
         for item in contexto:
-            item_clean = item.replace("[Memória Episódica]: ", "").replace("[Neocórtex]: ", "").strip().lower()
+            item_clean = item.replace("[Memória Episódica]: ", "").replace("[Memória Episódica Histórica]: ", "").replace("[Neocórtex]: ", "").strip().lower()
             if item_clean in working_str:
                 continue
             if item not in vistos:
                 vistos.add(item)
                 contexto_unico.append(item)
 
-        return "\n".join(contexto_unico) if contexto_unico else "Nenhuma memória relevante adicional."
+        if not contexto_unico:
+            return "Nenhuma memória episódica específica recuperada. Porém, todas as interações e conhecimentos passados estão preservados permanentemente na sua memória de longo prazo (Hipocampo/Neocórtex)."
+        return "\n".join(contexto_unico)
 
     def consolidar_memorias(self) -> dict:
         """

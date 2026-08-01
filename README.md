@@ -36,18 +36,17 @@
   - **🎭 Presets Arquétipos Cognitivos**: Presets predefinidos (*Mentor Estóico*, *Cientista Entusiasmado*, *Auditor Crítico*, *Poeta Empático*).
   - **🛠️ Cadastro, Edição e Upload Customizado**: Suporte total para cadastro, edição de parâmetros (OCEAN/PAD/Descrição/Interesses), exclusão e upload de novos arquivos `.json` ou módulos Python `.py` em `personalities/templates/`.
 
-- **🎯 Aprendizado Autônomo Guiado por Interesses**:
+- **🎯 Aprendizado Autônomo Guiado por Interesses (Assíncrono & Não-Bloqueante)**:
   - Cada personalidade possui uma lista de **interesses característicos**. Quando o **Aprendizado Autônomo** (`CuriosityCore`) está ativado, ele prioriza a pesquisa de tópicos alinhados aos interesses da personalidade ativa.
+  - A curiosidade autônoma roda em **background tasks assíncronas em segundo plano** (`asyncio.create_task`), evitando travamentos e garantindo o streaming SSE de chat fluido.
 
-- **🪞 Plena Auto-Consciência de Capacidades, Emoções & Personalidade**:
-  - Injeção dinâmica no prompt do sistema da auto-consciência total do NIB quanto ao seu modelo Ollama ativo, modo de memória, percentuais numéricos de Big Five (OCEAN), vetores emocionais PAD, tópicos de interesse e capacidades de aprendizado autônomo.
+- **💾 Persistência Global de Configurações (`settings_manager.py`)**:
+  - Armazenamento automático e unificado de todas as preferências do usuário no arquivo `nib_storage/system_settings.json`.
+  - Preserva entre reinícios do servidor e novas sessões: modelo do Ollama selecionado, modo de memória (`human`/`perfect`), aprendizado autônomo (ON/OFF), estado e sliders da personalidade (OCEAN) e parâmetros emocionais (PAD).
 
-- **📊 Dashboard Cognitivo, Visualizador de Grafo & Agregador de Logs**:
-  - **Página Independente (`/dashboard`)**: Acesso via modal ou em aba/janela exclusiva com o botão *"🔗 Nova Página"*.
-  - **🖥️ Terminal de Logs em Tempo Real**: Agregador e visualizador de logs do terminal em tempo real com auto-refresh (2s), categorização visual de tags (`[HIPOCAMPO]`, `[NEOCÓRTEX]`, `[PODA SINÁPTICA]`, `[MEMÓRIA HUMANA]`, etc.) e auto-scroll.
-
-- **💾 Persistência de Preferências**:
-  - Memorização persistente do modelo Ollama selecionado em disco (`nib_storage/selected_model.txt`) e personalidades customizadas (`nib_storage/custom_personalities.json`).
+- **♾️ Memória Eterna e Persistência de Conversas Inter-Sessões**:
+  - Retenção perpétua de diálogos e interações passadas armazenadas no Hipocampo (ChromaDB) e Neocórtex (GraphRAG).
+  - Resgate inteligente de memórias episódicas históricas ao ser questionado sobre diálogos anteriores e diretriz estrita no prompt de autoconsciência afirmando a perpetuidade de suas memórias.
 
 ---
 

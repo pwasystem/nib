@@ -13,6 +13,7 @@ class CuriosityCore:
     def __init__(self, brain_instance):
         self.brain = brain_instance
         self.learning_goals = []  # Lista de metas: [{"id": "...", "topico": "...", "concluida": False}]
+        self.ultimas_descobertas = [] # Registro recente de descobertas autônomas
         self.interesses_padrao = [
             "inteligência artificial neuro-simbólica",
             "redes neurais biológicas e plasticidade sináptica",
@@ -20,6 +21,10 @@ class CuriosityCore:
             "filosofia da mente e consciência artificial",
             "biomimética e sistemas adaptativos"
         ]
+
+    def obter_ultimas_descobertas(self, limit: int = 5) -> list:
+        """Retorna a lista de descobertas autônomas mais recentes."""
+        return self.ultimas_descobertas[-limit:]
 
     def adicionar_meta_aprendizado(self, topico: str) -> dict:
         """Adiciona uma nova meta de aprendizado autônomo definida pelo usuário."""
@@ -139,13 +144,17 @@ class CuriosityCore:
             fato = f"Aprendizado criativo autônomo sobre '{tema}' ({origem}): {descoberta}"
             self.brain.memorizar_experiencia(fato)
             logger.log_criatividade(f"💡 Nova descoberta criativa memorizada: '{fato[:120]}...'")
-            return {
+            item = {
                 "tipo": "criatividade",
                 "tema": tema,
                 "origem": origem,
                 "termo_pesquisa": termo_pesquisa,
                 "descoberta": descoberta
             }
+            self.ultimas_descobertas.append(item)
+            if len(self.ultimas_descobertas) > 10:
+                self.ultimas_descobertas.pop(0)
+            return item
 
         logger.log_criatividade(f"Pesquisa criativa sobre '{tema}' finalizada sem novos achados.")
         return None
@@ -176,11 +185,15 @@ class CuriosityCore:
                 fato = f"Aprendizado autônomo sobre '{conceito_orfa}': {conteudo_descoberto}"
                 self.brain.memorizar_experiencia(fato)
                 logger.log_criatividade(f"💡 Lacuna preenchida e memorizada: '{conceito_orfa}'")
-                return {
+                item = {
                     "tipo": "lacuna",
                     "conceito": conceito_orfa,
                     "descoberta": conteudo_descoberto
                 }
+                self.ultimas_descobertas.append(item)
+                if len(self.ultimas_descobertas) > 10:
+                    self.ultimas_descobertas.pop(0)
+                return item
 
         # Se não houver lacunas diretas, executa pesquisa criativa baseada em interesses/memória
         return self.pesquisa_criativa()

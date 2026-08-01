@@ -62,11 +62,13 @@ class TestServerNIB(unittest.TestCase):
         self.assertEqual(data["status"], "success")
         self.assertIn("NIB (Neuro-Informatik Brain)", data["intro"])
 
-    @patch("requests.get")
+    @patch("httpx.AsyncClient.get")
     def test_get_ollama_models(self, mock_get):
         mock_resp = MagicMock()
         mock_resp.json.return_value = {"models": [{"name": "qwen2.5:3b"}, {"name": "llama3.1:8b"}]}
-        mock_get.return_value = mock_resp
+        async def mock_async_get(*args, **kwargs):
+            return mock_resp
+        mock_get.side_effect = mock_async_get
 
         response = self.client.get("/api/ollama-models")
         self.assertEqual(response.status_code, 200)

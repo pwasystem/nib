@@ -104,10 +104,16 @@ OLLAMA_TIMEOUT = float(os.getenv("OLLAMA_TIMEOUT", 60.0))
 SELECTED_MODEL_FILE = os.path.join(STORAGE_DIR, "selected_model.txt")
 
 def save_selected_model(model_name: str):
-    """Salva o modelo selecionado em arquivo para manter a preferência entre reinícios."""
+    """Salva o modelo selecionado em arquivo e no system_settings.json para manter a preferência entre reinícios."""
+    clean_model = model_name.strip()
     try:
         with open(SELECTED_MODEL_FILE, "w", encoding="utf-8") as f:
-            f.write(model_name.strip())
+            f.write(clean_model)
+    except Exception:
+        pass
+    try:
+        import settings_manager
+        settings_manager.update_setting("ollama_model", clean_model)
     except Exception:
         pass
 
@@ -129,6 +135,15 @@ def _detect_ollama_model():
 
 def load_saved_model() -> str:
     """Carrega o modelo salvo anteriormente do disco, se existir."""
+    try:
+        import settings_manager
+        st = settings_manager.load_settings()
+        m = st.get("ollama_model")
+        if m:
+            return m
+    except Exception:
+        pass
+
     if os.path.exists(SELECTED_MODEL_FILE):
         try:
             with open(SELECTED_MODEL_FILE, "r", encoding="utf-8") as f:
@@ -139,7 +154,7 @@ def load_saved_model() -> str:
             pass
     return _detect_ollama_model()
 
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", load_saved_model())
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL") or load_saved_model()
 
 # ==========================================
 # 7. SERVIDOR FASTAPI

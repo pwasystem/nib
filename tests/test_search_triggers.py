@@ -40,5 +40,16 @@ class TestSearchTriggers(unittest.TestCase):
         mock_pesquisar.assert_called_once_with("Não é essa NIB, busque native in black", apenas_academico=False)
         self.assertIn("Conhecimento Atualizado via Pesquisa Web", res)
 
+    def test_solicitou_aprendizado_ou_memoria_conversas_passadas(self):
+        frases_conversas = [
+            "Olá, você tem a memória de alguma conversa passada?",
+            "Você se lembra de mim?",
+            "O que conversamos na sessão anterior?",
+            "Já conversamos antes sobre esse assunto?",
+            "Qual o histórico das nossas conversas passadas?"
+        ]
+        for f in frases_conversas:
+            self.assertTrue(self.brain.solicitou_aprendizado_ou_memoria(f), f"Falhou para gatilho de conversa passada: {f}")
+
 if __name__ == "__main__":
     unittest.main()

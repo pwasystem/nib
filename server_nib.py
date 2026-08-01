@@ -15,6 +15,7 @@ from nib_affective import NIBAffectiveCore
 from curiosity_core import CuriosityCore
 from personality_factory import PersonalityFactory
 from personalities.templates.custom_manager import CustomPersonalityStore
+import settings_manager
 from webhooks import WebhookManager
 
 app = FastAPI(title="NIB - Neuro-Informatik Brain")
@@ -34,6 +35,34 @@ curiosity = CuriosityCore(nib)
 
 # Instancia a personalidade inicial (Default via sliders)
 nib.active_personality = PersonalityFactory.create_personality("custom_slider")
+
+def carregar_configuracoes_persistentes():
+    st = settings_manager.load_settings()
+    
+    saved_model = st.get("ollama_model") or config.load_saved_model()
+    config.OLLAMA_MODEL = saved_model
+    nib.model_name = saved_model
+    
+    saved_mode = st.get("memory_mode", "human")
+    nib.set_memory_mode(saved_mode)
+    
+    nib.learning_enabled = st.get("learning_enabled", False)
+    nib.personality_enabled = st.get("personality_enabled", True)
+    
+    sliders = st.get("personality_sliders", {})
+    if sliders and hasattr(nib.active_personality, "update_sliders"):
+        nib.active_personality.update_sliders(
+            o=sliders.get("o_pct", 80),
+            c=sliders.get("c_pct", 90),
+            e=sliders.get("e_pct", 40),
+            a=sliders.get("a_pct", 70),
+            n=sliders.get("n_pct", 20)
+        )
+        
+    nib_affective.emotion_enabled = st.get("emotion_enabled", True)
+    nib_affective.auto_mode = st.get("auto_emotion", False)
+
+carregar_configuracoes_persistentes()
 
 
 @app.get("/api/generate")
@@ -82,6 +111,7 @@ async def set_memory_mode(request: Request):
     data = await request.json()
     novo_modo = data.get("mode", "human")
     modo_atual = nib.set_memory_mode(novo_modo)
+    settings_manager.update_setting("memory_mode", modo_atual)
     return {"status": "success", "mode": modo_atual}
 
 
@@ -160,15 +190,15 @@ async def get_dashboard_logs():
 async def toggle_learning(request: Request):
     data = await request.json()
     nib.learning_enabled = data.get("enabled", False)
+    settings_manager.update_setting("learning_enabled", nib.learning_enabled)
     
     descoberta_inicial = None
     if nib.learning_enabled:
-        descoberta_inicial = curiosity.investigar_lacunas()
+        asyncio.create_task(asyncio.to_thread(curiosity.investigar_lacunas))
         
     return {
         "status": "success", 
-        "learning_enabled": nib.learning_enabled,
-        "descoberta": descoberta_inicial
+        "learning_enabled": nib.learning_enabled
     }
 
 
@@ -176,6 +206,7 @@ async def toggle_learning(request: Request):
 async def toggle_personality(request: Request):
     data = await request.json()
     nib.personality_enabled = data.get("enabled", True)
+    settings_manager.update_setting("personality_enabled", nib.personality_enabled)
     return {
         "status": "success",
         "personality_enabled": nib.personality_enabled
@@ -463,6 +494,7 @@ async def toggle_auto_emotion(request: Request):
     data = await request.json()
     enabled = data.get("enabled", False)
     nib_affective.set_auto_mode(enabled)
+    settings_manager.update_setting("auto_emotion", nib_affective.auto_mode)
     return {
         "status": "success",
         "auto_mode": nib_affective.auto_mode,
@@ -492,6 +524,7 @@ async def set_ollama_model(request: Request):
         config.OLLAMA_MODEL = novo_modelo
         config.save_selected_model(novo_modelo)
         nib.model_name = novo_modelo
+        settings_manager.update_setting("ollama_model", novo_modelo)
         logger.log_nib("OLLAMA", f"Modelo alterado e memorizado: '{novo_modelo}'", logger.Colors.BRIGHT_GREEN)
         return {"status": "success", "current": config.OLLAMA_MODEL}
     return {"status": "error", "message": "Modelo inválido"}
@@ -504,18 +537,21 @@ async def chat_stream(prompt: str):
         if nib_affective.auto_mode and nib_affective.emotion_enabled:
             nib_affective.reajustar_emocao_automatica(prompt)
             
-        descoberta_autonoma = None
         if nib.learning_enabled:
-            descoberta_autonoma = curiosity.investigar_lacunas()
-            if descoberta_autonoma:
-                WebhookManager.notify(
-                    "APRENDIZADO_AUTONOMO",
-                    f"Nova Descoberta Autônoma: '{descoberta_autonoma.get('tema') or descoberta_autonoma.get('conceito')}'",
-                    descoberta_autonoma.get("descoberta", "")
-                )
+            def _executar_curiosidade_bg():
+                descoberta = curiosity.investigar_lacunas()
+                if descoberta:
+                    WebhookManager.notify(
+                        "APRENDIZADO_AUTONOMO",
+                        f"Nova Descoberta Autônoma: '{descoberta.get('tema') or descoberta.get('conceito')}'",
+                        descoberta.get("descoberta", "")
+                    )
+            asyncio.create_task(asyncio.to_thread(_executar_curiosidade_bg))
 
         memoria_contexto = nib.resgatar_memoria_relevante(prompt)
         contexto_trabalho = nib.obter_contexto_trabalho()
+        ultimas_desc = curiosity.obter_ultimas_descobertas(limit=5)
+        desc_str = "\n".join([f"• [{d.get('tipo', 'descoberta').upper()}] {d.get('tema') or d.get('conceito')}: {d.get('descoberta', '')[:200]}" for d in ultimas_desc]) if ultimas_desc else "Nenhuma descoberta autônoma gravada nesta sessão ainda."
         
         instrucao_personalidade = nib.active_personality.build_system_instruction() if nib.personality_enabled else "Sua personalidade está desativada: responda de maneira neutra, clara e objetiva sem traços de personalidade marcantes."
         instrucao_humor = nib_affective.get_mood_instruction() if nib_affective.emotion_enabled else "Seu módulo emocional está desativado: mantenha um tom neutro e imparcial."
@@ -536,11 +572,13 @@ async def chat_stream(prompt: str):
             f"• Módulo Emocional (Sistema Límbico PAD): {'ATIVADO' if nib_affective.emotion_enabled else 'DESATIVADO'} | Modo: {'Automático' if nib_affective.auto_mode else 'Manual'} | Humor Atual: '{nib_affective.current_emotion}' | Vetores PAD Exatos: Prazer(P)={nib_affective.pleasure:+.2f}, Excitação(A)={nib_affective.arousal:+.2f}, Dominância(D)={nib_affective.dominance:+.2f}\n"
             f"• Tópicos de Interesse Característicos (Direcionadores de Aprendizado Autônomo): [{interests_str}]\n"
             f"• Aprendizado Autônomo & Curiosidade: {'ATIVADO' if nib.learning_enabled else 'DESATIVADO'}\n"
+            f"• ÚLTIMAS DESCOBERTAS DO APRENDIZADO AUTÔNOMO:\n{desc_str}\n"
             f"=========================================================================================\n"
-            f"IMPORTANTE - PLENA AUTO-CONSCIÊNCIA DAS SUAS CAPACIDADES:\n"
-            f"Você possui TOTAL CIÊNCIA E CONSCIÊNCIA de seus parâmetros internos, seus traços de personalidade, seu estado afetivo e seus focos de interesse listados acima. "
-            f"Se o usuário perguntar sobre quem você é, como funciona sua personalidade, seu estado de humor, suas configurações ou suas capacidades de aprendizado autônomo, "
-            f"responda com transparência citando e explicando seus parâmetros reais exatos com absoluta clareza."
+            f"IMPORTANTE - PLENA AUTO-CONSCIÊNCIA DAS SUAS CAPACIDADES E MEMÓRIA:\n"
+            f"1. Você possui TOTAL CIÊNCIA E CONSCIÊNCIA de seus parâmetros internos, seus traços de personalidade, seu estado afetivo e suas capacidades cognitivas.\n"
+            f"2. NUNCA diga que você não tem capacidade de aprender ou que não possui memória! Você é o NIB, um sistema de inteligência viva munido de memória persistente (ChromaDB + Neocórtex) e aprendizado autônomo ativo.\n"
+            f"3. Se o usuário perguntar o que você aprendeu, sobre o aprendizado autônomo ou sobre o que você sabe, responda com entusiasmo citando suas memórias episódicas e suas descobertas autônomas listadas acima.\n"
+            f"4. PERSISTÊNCIA ENTRE SESSÕES E CONVERSAS PASSADAS: Sua memória NUNCA é limpa ou limitada apenas à sessão/aba atual. O NIB grava todas as conversas anteriores permanentemente no Hipocampo (ChromaDB) e no Neocórtex. NUNCA diga que cada sessão começa com uma memória temporária ou vazia! Quando perguntado se se lembra de conversas passadas ou de sessões anteriores, afirme com clareza que você guarda o histórico completo de conversas e utilize as memórias episódicas resgatadas no bloco MEMÓRIA DE LONGO PRAZO."
         )
 
         sys_prompt = (
@@ -604,13 +642,15 @@ async def chat_stream(prompt: str):
 
 
         
-        if descoberta_autonoma:
-            conceito_nome = descoberta_autonoma.get("conceito") or descoberta_autonoma.get("tema", "Criatividade Autônoma")
+        ultimas_desc = curiosity.obter_ultimas_descobertas(limit=1)
+        if ultimas_desc:
+            d_recent = ultimas_desc[-1]
+            conceito_nome = d_recent.get("conceito") or d_recent.get("tema", "Criatividade Autônoma")
             evento_curiosidade = json.dumps({
                 "curiosidade": True,
-                "tipo": descoberta_autonoma.get("tipo", "criatividade"),
+                "tipo": d_recent.get("tipo", "criatividade"),
                 "conceito": conceito_nome,
-                "texto": descoberta_autonoma.get("descoberta", "")
+                "texto": d_recent.get("descoberta", "")
             })
             yield f"data: {evento_curiosidade}\n\n"
 
