@@ -40,13 +40,13 @@
   - Cada personalidade possui uma lista de **interesses característicos**. Quando o **Aprendizado Autônomo** (`CuriosityCore`) está ativado, ele prioriza a pesquisa de tópicos alinhados aos interesses da personalidade ativa.
   - A curiosidade autônoma roda em **background tasks assíncronas em segundo plano** (`asyncio.create_task`), evitando travamentos e garantindo o streaming SSE de chat fluido.
 
-- **💾 Persistência Global de Configurações (`settings_manager.py`)**:
-  - Armazenamento automático e unificado de todas as preferências do usuário no arquivo `nib_storage/system_settings.json`.
-  - Preserva entre reinícios do servidor e novas sessões: modelo do Ollama selecionado, modo de memória (`human`/`perfect`), aprendizado autônomo (ON/OFF), estado e sliders da personalidade (OCEAN) e parâmetros emocionais (PAD).
+- **⚡ Consolidação Não-Bloqueante & Alta Performance de Gravação (< 5ms)**:
+  - Extração de triplas conceituais do Neocórtex via Ollama executada de forma **totalmente assíncrona em background threads** (`threading.Thread`).
+  - Gravação atômica em disco do grafo Neocortical (`_salvar_neocortex`) não-bloqueante, eliminando totalmente pausas e latências no fluxo de resposta do chat.
 
-- **♾️ Memória Eterna e Persistência de Conversas Inter-Sessões**:
-  - Retenção perpétua de diálogos e interações passadas armazenadas no Hipocampo (ChromaDB) e Neocórtex (GraphRAG).
-  - Resgate inteligente de memórias episódicas históricas ao ser questionado sobre diálogos anteriores e diretriz estrita no prompt de autoconsciência afirmando a perpetuidade de suas memórias.
+- **🏷️ Categorização e Organização Estruturada da Memória Episódica**:
+  - Indexação categorizada por metadados no Hipocampo (ChromaDB): `dialogo` (conversas diretas com o usuário), `aprendizado_autonomo` (descobertas da curiosidade) e `pesquisa_web` (artigos e referências externas).
+  - Formatação estruturada dos registros recuperados pelo RAG Híbrido em seções com cabeçalhos nítidos (*Diálogos Passados*, *Descobertas Autônomas*, *Pesquisas Web*, *Conexões Semânticas do Neocórtex*), maximizando a compreensão pelo LLM.
 
 ---
 
