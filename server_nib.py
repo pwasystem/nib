@@ -638,7 +638,7 @@ async def chat_stream(prompt: str):
 
         if resposta_completa.strip():
             nib.registrar_interacao_trabalho(prompt, resposta_completa)
-            nib.memorizar_experiencia(f"Usuário: '{prompt}' | NIB: '{resposta_completa}'")
+            nib.memorizar_experiencia(f"Usuário: '{prompt}' | NIB: '{resposta_completa}'", categoria="dialogo")
 
 
         

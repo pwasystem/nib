@@ -142,7 +142,7 @@ class CuriosityCore:
 
         if descoberta and "Nenhuma informação" not in descoberta:
             fato = f"Aprendizado criativo autônomo sobre '{tema}' ({origem}): {descoberta}"
-            self.brain.memorizar_experiencia(fato)
+            self.brain.memorizar_experiencia(fato, categoria="aprendizado_autonomo")
             logger.log_criatividade(f"💡 Nova descoberta criativa memorizada: '{fato[:120]}...'")
             item = {
                 "tipo": "criatividade",
@@ -183,7 +183,7 @@ class CuriosityCore:
 
             if conteudo_descoberto:
                 fato = f"Aprendizado autônomo sobre '{conceito_orfa}': {conteudo_descoberto}"
-                self.brain.memorizar_experiencia(fato)
+                self.brain.memorizar_experiencia(fato, categoria="aprendizado_autonomo")
                 logger.log_criatividade(f"💡 Lacuna preenchida e memorizada: '{conceito_orfa}'")
                 item = {
                     "tipo": "lacuna",

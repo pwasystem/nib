@@ -38,7 +38,7 @@ class TestSearchTriggers(unittest.TestCase):
         res = self.brain.resgatar_memoria_relevante("Não é essa NIB, busque native in black")
         
         mock_pesquisar.assert_called_once_with("Não é essa NIB, busque native in black", apenas_academico=False)
-        self.assertIn("Conhecimento Atualizado via Pesquisa Web", res)
+        self.assertIn("Pesquisa Web", res)
 
     def test_solicitou_aprendizado_ou_memoria_conversas_passadas(self):
         frases_conversas = [

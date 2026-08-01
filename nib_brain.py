@@ -120,18 +120,20 @@ class NeuroInformatikBrain:
                 self.neocortex = nx.DiGraph()
 
     def _salvar_neocortex(self):
-        with self._neocortex_lock:
-            try:
-                dir_name = os.path.dirname(os.path.abspath(self.neocortex_path))
-                os.makedirs(dir_name, exist_ok=True)
+        def _salvar_bg():
+            with self._neocortex_lock:
+                try:
+                    dir_name = os.path.dirname(os.path.abspath(self.neocortex_path))
+                    os.makedirs(dir_name, exist_ok=True)
 
-                with tempfile.NamedTemporaryFile("w", dir=dir_name, delete=False, encoding="utf-8") as tf:
-                    json.dump(nx.node_link_data(self.neocortex), tf, ensure_ascii=False, indent=2)
-                    temp_name = tf.name
+                    with tempfile.NamedTemporaryFile("w", dir=dir_name, delete=False, encoding="utf-8") as tf:
+                        json.dump(nx.node_link_data(self.neocortex), tf, ensure_ascii=False, indent=2)
+                        temp_name = tf.name
 
-                os.replace(temp_name, self.neocortex_path)
-            except Exception as e:
-                logger.log_warning(f"Erro ao salvar Neocórtex atômico: {e}")
+                    os.replace(temp_name, self.neocortex_path)
+                except Exception as e:
+                    logger.log_warning(f"Erro ao salvar Neocórtex atômico: {e}")
+        threading.Thread(target=_salvar_bg, daemon=True).start()
 
 
     def normalizar_entidade(self, texto: str) -> str:
@@ -187,6 +189,68 @@ class NeuroInformatikBrain:
             
         self._salvar_neocortex()
 
+    # --------------------------------------------------
+    # GRAVAÇÃO DE EXPERIÊNCIAS
+    # --------------------------------------------------
+    def memorizar_experiencia(self, texto: str, categoria: str = "dialogo"):
+        ts = int(time.time())
+        id_unico = f"synapse_{ts}"
+        agora = time.time()
+
+        if self.memory_mode == "human":
+            logger.log_human(f"Memorizando experiência humana [{categoria}]: '{texto[:80]}...'")
+            metadata = {
+                "timestamp_criacao": agora,
+                "ultimo_acesso": agora,
+                "forca_sinaptica": 1.5,
+                "acessos": 1,
+                "categoria": categoria
+            }
+        else:
+            logger.log_perfect(f"Memorizando experiência perfeita [{categoria}]: '{texto[:80]}...'")
+            metadata = {
+                "timestamp": ts,
+                "categoria": categoria
+            }
+
+        # Log WAL (Journal)
+        with open(self.wal_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps({"id": id_unico, "texto": texto, "timestamp": ts, "mode": self.memory_mode, "categoria": categoria}, ensure_ascii=False) + "\n")
+        logger.log_wal(f"Log WAL gravado para id: '{id_unico}'")
+
+        # ChromaDB
+        try:
+            self.hipocampo.add(
+                documents=[texto], 
+                metadatas=[metadata], 
+                ids=[id_unico]
+            )
+            logger.log_hipocampo(f"Nova memória [{categoria}] gravada no ChromaDB.")
+        except Exception as e:
+            logger.log_warning(f"Erro no ChromaDB: {e}")
+        
+        # Extração de Triplas para Neocórtex em thread assíncrona não-bloqueante
+        def _extrair_e_consolidar_bg(txt, timestamp):
+            sys_p = 'Extraia triplas de conhecimento no formato JSON estrito: {"triplas": [{"sujeito": "...", "relacao": "...", "objeto": "..."}]}. APENAS JSON.'
+            try:
+                r = requests.post(self.ollama_url, json={
+                    "model": self.model_name, 
+                    "prompt": f"Texto para consolidar: '{txt}'", 
+                    "system": sys_p, 
+                    "stream": False
+                }, timeout=10).json().get("response", "")
+                
+                i, f = r.find("{"), r.rfind("}") + 1
+                if i != -1 and f != -1 and f > i:
+                    data = json.loads(r[i:f])
+                    if isinstance(data, dict):
+                        for t in data.get("triplas", []):
+                            if isinstance(t, dict) and "sujeito" in t and "relacao" in t and "objeto" in t:
+                                self.consolidar_sinapse(t["sujeito"], t["relacao"], t["objeto"], timestamp)
+            except Exception:
+                pass
+
+        threading.Thread(target=_extrair_e_consolidar_bg, args=(texto, ts), daemon=True).start()
 
     # --------------------------------------------------
     # --------------------------------------------------
@@ -418,7 +482,7 @@ class NeuroInformatikBrain:
         
         # Salva o aprendizado na memória
         id_novo = f"ext_mem_{int(time.time())}"
-        self.memorizar_experiencia(f"Conhecimento pesquisado sobre '{termo_limpo}': {conteudo}")
+        self.memorizar_experiencia(f"Conhecimento pesquisado sobre '{termo_limpo}': {conteudo}", categoria="pesquisa_web")
         
         return conteudo
 
@@ -565,63 +629,6 @@ class NeuroInformatikBrain:
             })
 
         return {"nodes": nodes, "edges": edges}
-
-
-    # --------------------------------------------------
-    # GRAVAÇÃO DE EXPERIÊNCIAS
-    # --------------------------------------------------
-    def memorizar_experiencia(self, texto: str):
-        ts = int(time.time())
-        id_unico = f"synapse_{ts}"
-        agora = time.time()
-
-        if self.memory_mode == "human":
-            logger.log_human(f"Memorizando experiência humana: '{texto[:80]}...'")
-            metadata = {
-                "timestamp_criacao": agora,
-                "ultimo_acesso": agora,
-                "forca_sinaptica": 1.5,
-                "acessos": 1
-            }
-        else:
-            logger.log_perfect(f"Memorizando experiência perfeita: '{texto[:80]}...'")
-            metadata = {"timestamp": ts}
-
-        # Log WAL (Journal)
-        with open(self.wal_path, "a", encoding="utf-8") as f:
-            f.write(json.dumps({"id": id_unico, "texto": texto, "timestamp": ts, "mode": self.memory_mode}, ensure_ascii=False) + "\n")
-        logger.log_wal(f"Log WAL gravado para id: '{id_unico}'")
-
-        # ChromaDB
-        try:
-            self.hipocampo.add(
-                documents=[texto], 
-                metadatas=[metadata], 
-                ids=[id_unico]
-            )
-            logger.log_hipocampo("Nova memória gravada no ChromaDB.")
-        except Exception as e:
-            logger.log_warning(f"Erro no ChromaDB: {e}")
-        
-        # Extração de Triplas para Neocórtex
-        sys_p = 'Extraia triplas de conhecimento no formato JSON estrito: {"triplas": [{"sujeito": "...", "relacao": "...", "objeto": "..."}]}. APENAS JSON.'
-        try:
-            r = requests.post(self.ollama_url, json={
-                "model": self.model_name, 
-                "prompt": f"Texto para consolidar: '{texto}'", 
-                "system": sys_p, 
-                "stream": False
-            }, timeout=10).json().get("response", "")
-            
-            i, f = r.find("{"), r.rfind("}") + 1
-            if i != -1 and f != -1 and f > i:
-                data = json.loads(r[i:f])
-                if isinstance(data, dict):
-                    for t in data.get("triplas", []):
-                        if isinstance(t, dict) and "sujeito" in t and "relacao" in t and "objeto" in t:
-                            self.consolidar_sinapse(t["sujeito"], t["relacao"], t["objeto"], ts)
-        except Exception:
-            pass
 
     def solicitou_pesquisa_ou_correcao(self, consulta: str) -> bool:
         """Verifica se a consulta do usuário contém pedidos explícitos de busca ou sinalização de erro/correção."""
@@ -808,39 +815,66 @@ class NeuroInformatikBrain:
 
         # Ordenação por Score Híbrido
         candidatos_hibridos.sort(key=lambda x: x["score"], reverse=True)
-        contexto = [item["texto"] for item in candidatos_hibridos]
 
         # 3. Forçar Pesquisa Web em caso de Solicitação Explícita ou Correção do Usuário
+        pesquisa_extra = ""
         forcar_pesquisa = self.solicitou_pesquisa_ou_correcao(consulta)
         if forcar_pesquisa:
             logger.log_nib("REQUISIÇÃO/CORREÇÃO", f"Solicitação explícita de busca/correção detectada: '{consulta}'", logger.Colors.BRIGHT_MAGENTA)
             conhecimento = self.pesquisar_conhecimento_externo(consulta, apenas_academico=False)
             if conhecimento and "Nenhuma informação" not in conhecimento:
-                contexto.append(f"[Conhecimento Atualizado via Pesquisa Web (Solicitado/Correção)]: {conhecimento}")
+                pesquisa_extra = f"• [Pesquisa Web (Solicitada)]: {conhecimento}"
 
         # 4. Tratamento de Lacuna de Conhecimento quando nada for encontrado na memória local (ignora se for diálogo informal)
-        elif (not contexto or len("\n".join(contexto).strip()) < 15) and not self.eh_dialogo_informal(consulta):
+        elif (not candidatos_hibridos or len(candidatos_hibridos) == 0) and not self.eh_dialogo_informal(consulta):
             logger.log_nib("SISTEMA NIB", "Informação ausente na memória local. Disparando pesquisa externa em camadas (Acadêmica ➔ Notícias ➔ Tendências/Web)...", logger.Colors.BRIGHT_YELLOW)
             conhecimento = self.pesquisar_conhecimento_externo(consulta, apenas_academico=False)
             if conhecimento and "Nenhuma informação" not in conhecimento:
-                contexto.append(f"[Conhecimento Externo Adquirido]: {conhecimento}")
+                pesquisa_extra = f"• [Conhecimento Externo Adquirido]: {conhecimento}"
 
-        # Remoção de duplicados preservando ordem de ranking e evitando redundância com a memória de trabalho
-        vistos = set()
-        contexto_unico = []
+        # Categorização e Organização Estruturada dos Registros
         working_str = self.obter_contexto_trabalho().lower()
+        dialogos = []
+        descobertas = []
+        pesquisas_web = []
+        relacoes_neocortex = []
+        vistos = set()
 
-        for item in contexto:
-            item_clean = item.replace("[Memória Episódica]: ", "").replace("[Memória Episódica Histórica]: ", "").replace("[Neocórtex]: ", "").strip().lower()
-            if item_clean in working_str:
+        if pesquisa_extra:
+            pesquisas_web.append(pesquisa_extra)
+
+        for item in candidatos_hibridos:
+            txt = item["texto"]
+            txt_clean = txt.replace("[Memória Episódica]: ", "").replace("[Memória Episódica Histórica]: ", "").replace("[Neocórtex]: ", "").strip()
+            
+            if txt_clean.lower() in working_str or txt_clean.lower() in vistos:
                 continue
-            if item not in vistos:
-                vistos.add(item)
-                contexto_unico.append(item)
+            vistos.add(txt_clean.lower())
 
-        if not contexto_unico:
+            if item.get("tipo") == "relacional" or "[Neocórtex]" in txt:
+                relacoes_neocortex.append(f"• {txt}")
+            else:
+                cat = item.get("meta", {}).get("categoria", "")
+                if cat == "aprendizado_autonomo" or "Aprendizado criativo" in txt_clean or "Aprendizado autônomo" in txt_clean:
+                    descobertas.append(f"• {txt_clean}")
+                elif cat == "pesquisa_web" or "Conhecimento pesquisado" in txt_clean or "[Artigo" in txt_clean:
+                    pesquisas_web.append(f"• {txt_clean}")
+                else:
+                    dialogos.append(f"• {txt_clean}")
+
+        secoes = []
+        if dialogos:
+            secoes.append("--- HISTÓRICO DE DIÁLOGOS PASSADOS COM O USUÁRIO ---\n" + "\n".join(dialogos[:4]))
+        if descobertas:
+            secoes.append("--- CONHECIMENTOS & DESCOBERTAS AUTÔNOMAS ---\n" + "\n".join(descobertas[:3]))
+        if pesquisas_web:
+            secoes.append("--- REFERÊNCIAS E PESQUISAS EXTERNAS (WEB/ACADÊMICO) ---\n" + "\n".join(pesquisas_web[:3]))
+        if relacoes_neocortex:
+            secoes.append("--- CONEXÕES SEMÂNTICAS DO NEOCÓRTEX (GRAPHRAG) ---\n" + "\n".join(relacoes_neocortex[:5]))
+
+        if not secoes:
             return "Nenhuma memória episódica específica recuperada. Porém, todas as interações e conhecimentos passados estão preservados permanentemente na sua memória de longo prazo (Hipocampo/Neocórtex)."
-        return "\n".join(contexto_unico)
+        return "\n\n".join(secoes)
 
     def consolidar_memorias(self) -> dict:
         """
