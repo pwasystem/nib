@@ -645,8 +645,10 @@ class NeuroInformatikBrain:
         c_lower = consulta.lower().strip()
         gatilhos_informais = [
             "olá", "ola", "oi", "oie", "tudo bem", "como vai", "boa tarde", "bom dia", "boa noite",
-            "amigo", "amiga", "amigos", "amizade", "quer ser meu", "seja meu", "você é meu", "voce e meu",
-            "quem é você", "quem e voce", "qual seu nome", "obrigado", "obrigada", "valeu", "tchau", "até logo"
+            "tudo bom", "tudo bom por ai", "tudo bom por aí", "como está", "como esta", "tudo certo",
+            "tudo ótimo", "tudo otimo", "amigo", "amiga", "amigos", "amizade", "quer ser meu", "seja meu",
+            "você é meu", "voce e meu", "quem é você", "quem e voce", "qual seu nome", "obrigado", "obrigada",
+            "valeu", "tchau", "até logo"
         ]
         for g in gatilhos_informais:
             if g in c_lower:
