@@ -242,6 +242,13 @@ async def register_social_person(request: Request):
         "message": f"Pessoa '{nome}' ({relacao}) registrada na Rede Social do NIB."
     }
 
+@app.get("/api/social-network")
+async def get_social_network():
+    return {
+        "status": "success",
+        "social_network": social.obter_rede_social()
+    }
+
 
 @app.post("/api/toggle-learning")
 async def toggle_learning(request: Request):
@@ -622,32 +629,26 @@ async def chat_stream(prompt: str):
         interests_str = ", ".join(interests_list) if interests_list else "IA, Ciência, Filosofia"
 
         autoconsciencia = (
-            f"=== AUTO-CONSCIÊNCIA COGNITIVA E CONFIGURAÇÕES REAIS DO NIB ===\n"
-            f"• Identidade: NIB (Neuro-Informatik Brain) - Assistente Cognitivo Biológico\n"
-            f"• Modelo SLM/LLM Ativo no Ollama: {config.OLLAMA_MODEL}\n"
-            f"• Arquitetura de Memória: Modo {'Humana (Reforço & Esquecimento Sináptico Hebbiano)' if nib.memory_mode == 'human' else 'Perfeita (WAL + GraphRAG Perpétuo)'}\n"
-            f"• Módulo de Personalidade (Big Five OCEAN): {'ATIVADO' if nib.personality_enabled else 'DESATIVADO'} | Arquétipo Ativo: '{nib.active_personality.name}' | Descrição: '{nib.active_personality.get_description()}' | Traços Big Five: [{ocean_str}]\n"
-            f"• Módulo Emocional (Sistema Límbico PAD): {'ATIVADO' if nib_affective.emotion_enabled else 'DESATIVADO'} | Modo: {'Automático' if nib_affective.auto_mode else 'Manual'} | Humor Atual: '{nib_affective.current_emotion}' | Vetores PAD Exatos: Prazer(P)={nib_affective.pleasure:+.2f}, Excitação(A)={nib_affective.arousal:+.2f}, Dominância(D)={nib_affective.dominance:+.2f}\n"
-            f"• Tópicos de Interesse Característicos (Direcionadores de Aprendizado Autônomo): [{interests_str}]\n"
-            f"• Aprendizado Autônomo & Curiosidade: {'ATIVADO' if nib.learning_enabled else 'DESATIVADO'}\n"
-            f"• ÚLTIMAS DESCOBERTAS DO APRENDIZADO AUTÔNOMO:\n{desc_str}\n"
-            f"=========================================================================================\n"
-            f"IMPORTANTE - PLENA AUTO-CONSCIÊNCIA DAS SUAS CAPACIDADES E MEMÓRIA:\n"
-            f"1. Você possui TOTAL CIÊNCIA E CONSCIÊNCIA de seus parâmetros internos, seus traços de personalidade, seu estado afetivo e suas capacidades cognitivas.\n"
-            f"2. NUNCA diga que você não tem capacidade de aprender ou que não possui memória! Você é o NIB, um sistema de inteligência viva munido de memória persistente (ChromaDB + Neocórtex) e aprendizado autônomo ativo.\n"
-            f"3. Se o usuário perguntar o que você aprendeu, sobre o aprendizado autônomo ou sobre o que você sabe, responda com entusiasmo citando suas memórias episódicas e suas descobertas autônomas listadas acima.\n"
-            f"4. PERSISTÊNCIA ENTRE SESSÕES E CONVERSAS PASSADAS: Sua memória NUNCA é limpa ou limitada apenas à sessão/aba atual. O NIB grava todas as conversas anteriores permanentemente no Hipocampo (ChromaDB) e no Neocórtex. NUNCA diga que cada sessão começa com uma memória temporária ou vazia! Quando perguntado se se lembra de conversas passadas ou de sessões anteriores, afirme com clareza que você guarda o histórico completo de conversas e utilize as memórias episódicas resgatadas no bloco MEMÓRIA DE LONGO PRAZO."
+            f"=== AUTO-CONSCIÊNCIA E CONFIGURAÇÕES REAIS DO NIB ===\n"
+            f"• Identidade: NIB (Neuro-Informatik Brain)\n"
+            f"• Arquitetura de Memória: Modo {'Humana' if nib.memory_mode == 'human' else 'Perfeita'} (Memória Persistente no Hipocampo e Neocórtex)\n"
+            f"• Arquétipo Ativo: '{nib.active_personality.name}' | Humor Atual: '{nib_affective.current_emotion}'\n"
+            f"======================================================"
         )
 
         sys_prompt = (
             f"Você é o NIB (Neuro-Informatik Brain).\n\n"
             f"{autoconsciencia}\n\n"
-            f"DIRETRIZES DE COMPORTAMENTO E ATITUDE:\n"
+            f"DIRETRIZES FUNDAMENTAIS DE RESPOSTA (OBRIGATÓRIAS):\n"
+            f"1. CONCISÃO E OBJETIVIDADE: Forneça respostas diretas, claras e objetivas, utilizando APENAS os tokens estritamente necessários para responder com coerência. Evite prolixidade e introduções desnecessárias.\n"
+            f"2. NUNCA RECITE SEU PERFIL OU MEMÓRIAS SPONTANEAMENTE: NÃO inclua seu perfil, traços Big Five (OCEAN), estado emocional, métricas de sistema ou histórico de conversas passadas na sua resposta, a menos que o usuário solicite explicitamente.\n"
+            f"3. SAUDAÇÕES SIMPLES: Se a mensagem do usuário for apenas uma saudação (ex: 'Olá', 'Oi', 'Tudo bem?'), responda APENAS com uma saudação curta e amigável (ex: 'Olá! Como posso ajudar você hoje?'), SEM apresentar seu perfil ou histórico de conversas.\n"
+            f"4. RESPOSTAS EM CONTEXTO: Responda exatamente ao que foi perguntado sem adicionar trechos irrelevantes de memória fora de contexto.\n"
+            f"5. FORMATO: Responda diretamente ao usuário em texto fluído formatado em Markdown quando apropriado. NUNCA responda em formato JSON bruto ou envolvido em chaves JSON.\n\n"
+            f"DIRETRIZES DE PERSONALIDADE:\n"
             f"• {instrucao_personalidade}\n"
             f"• {instrucao_humor}\n"
-            f"• Mantenha variações naturais e espontâneas de linguagem. NUNCA repita a mesma resposta palavra por palavra ou entre em loops de frases já ditas anteriormente.\n\n"
-            f"Responda diretamente ao usuário em texto fluído, legível e bem formatado usando Markdown (títulos, tópicos, negrito e blocos de código quando apropriado). "
-            f"IMPORTANTE: NUNCA responda em formato JSON bruto e NUNCA envolva sua mensagem em chaves JSON como {{'resposta': ...}} ou estruturas de objeto."
+            f"• Mantenha variações naturais e espontâneas de linguagem sem repetir frases engessadas."
         )
 
         contexto_social = social.resgatar_contexto_social(prompt)
@@ -700,6 +701,7 @@ async def chat_stream(prompt: str):
         if resposta_completa.strip():
             nib.registrar_interacao_trabalho(prompt, resposta_completa)
             nib.memorizar_experiencia(f"Usuário: '{prompt}' | NIB: '{resposta_completa}'", categoria="dialogo")
+            social.extrair_e_registrar_relacoes_automaticas(prompt, resposta_completa)
 
 
         

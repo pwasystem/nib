@@ -761,6 +761,10 @@ class NeuroInformatikBrain:
     # RESGATE DE MEMÓRIA
     # --------------------------------------------------
     def resgatar_memoria_relevante(self, consulta: str) -> str:
+        # Se for uma saudação/diálogo informal simples e sem pedido explícito de histórico/pesquisa, não carrega memórias antigas
+        if self.eh_dialogo_informal(consulta) and not self.solicitou_aprendizado_ou_memoria(consulta) and not self.solicitou_pesquisa_ou_correcao(consulta):
+            return "Nenhuma memória episódica necessária para esta saudação informal."
+
         agora = time.time()
         tag_modo = "MEMÓRIA HUMANA" if self.memory_mode == "human" else "MEMÓRIA PERFEITA"
         logger.log_nib(tag_modo, f"Consultando memória híbrida para: '{consulta}'", logger.Colors.BRIGHT_YELLOW if self.memory_mode == "human" else logger.Colors.BRIGHT_CYAN)
@@ -791,6 +795,10 @@ class NeuroInformatikBrain:
                         m_id = res_vec["ids"][g_idx][i] if (res_vec.get("ids") and len(res_vec["ids"]) > g_idx and len(res_vec["ids"][g_idx]) > i) else f"id_{i}"
                         meta = (res_vec["metadatas"][g_idx][i] if (res_vec.get("metadatas") and len(res_vec["metadatas"]) > g_idx and len(res_vec["metadatas"][g_idx]) > i) else {}) or {}
                         dist = res_vec["distances"][g_idx][i] if (res_vec.get("distances") and len(res_vec["distances"]) > g_idx and len(res_vec["distances"][g_idx]) > i) else 1.0
+
+                        # Descartar memórias vetoriais de baixa relevância (distância > 0.6) a menos que solicitado explicitamente
+                        if dist > 0.6 and not self.solicitou_aprendizado_ou_memoria(consulta):
+                            continue
 
                         score_vec = 1.0 / (1.0 + dist)
                         score_hibrido = w_vec * score_vec
@@ -824,7 +832,12 @@ class NeuroInformatikBrain:
             logger.log_warning(f"Erro ao consultar Hipocampo: {e}")
 
         # 2. RAG Relacional (Neocórtex - GraphRAG/NetworkX)
-        palavras_brutas = [p.strip().lower() for p in consulta.split() if len(p) > 2]
+        stopwords = {
+            "ola", "olá", "como", "qual", "quais", "para", "sobre", "você", "voce", 
+            "onde", "quando", "quem", "tudo", "mais", "muito", "este", "esta", "estou", 
+            "está", "estao", "estão", "pode", "podem", "fazer", "bom", "boa", "bem"
+        }
+        palavras_brutas = [p.strip().lower() for p in consulta.split() if len(p) > 2 and p.strip().lower() not in stopwords]
         nos_alvo = set()
         for p in palavras_brutas:
             if p: nos_alvo.add(p)

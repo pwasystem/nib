@@ -36,17 +36,19 @@
   - **🎭 Presets Arquétipos Cognitivos**: Presets predefinidos (*Mentor Estóico*, *Cientista Entusiasmado*, *Auditor Crítico*, *Poeta Empático*).
   - **🛠️ Cadastro, Edição e Upload Customizado**: Suporte total para cadastro, edição de parâmetros (OCEAN/PAD/Descrição/Interesses), exclusão e upload de novos arquivos `.json` ou módulos Python `.py` em `personalities/templates/`.
 
-- **🎯 Aprendizado Autônomo Guiado por Interesses (Assíncrono & Não-Bloqueante)**:
-  - Cada personalidade possui uma lista de **interesses característicos**. Quando o **Aprendizado Autônomo** (`CuriosityCore`) está ativado, ele prioriza a pesquisa de tópicos alinhados aos interesses da personalidade ativa.
+- **🎯 Aprendizado Autônomo Diversificado por Personalidade (`curiosity_core.py`)**:
+  - Cada personalidade possui uma lista de **interesses característicos** e traços Big Five. Quando o **Aprendizado Autônomo** está ativado, ele alterna dinamicamente entre os interesses da personalidade ativa, lacunas inéditas do Neocórtex e memórias do Hipocampo.
+  - Possui um **filtro deslizante de não-repetição** (`topicos_pesquisados_recentes`), impedindo que o assistente estude o mesmo assunto repetidamente.
   - A curiosidade autônoma roda em **background tasks assíncronas em segundo plano** (`asyncio.create_task`), evitando travamentos e garantindo o streaming SSE de chat fluido.
 
-- **⚡ Consolidação Não-Bloqueante & Alta Performance de Gravação (< 5ms)**:
-  - Extração de triplas conceituais do Neocórtex via Ollama executada de forma **totalmente assíncrona em background threads** (`threading.Thread`).
-  - Gravação atômica em disco do grafo Neocortical (`_salvar_neocortex`) não-bloqueante, eliminando totalmente pausas e latências no fluxo de resposta do chat.
+- **⚡ Respostas Concisas, Objetivas e Sem Poluição de Contexto**:
+  - Prompt de sistema otimizado para **máxima eficiência de tokens**, fornecendo respostas diretas e completas sem introduções prolixas.
+  - Filtro estrito que impede o despejo espontâneo do próprio perfil, estado emocional ou histórico de conversas passadas em saudações simples (ex: *"Olá"*).
+  - Limiar de distância vetorial no RAG do Hipocampo (`dist <= 0.6`), descartando fragmentos de memória irrelevantes.
 
-- **👥 Gestão de Rede Social & Círculo Afetivo (`social_core.py`)**:
-  - Mapeia pessoas importantes do círculo social do usuário/NIB, suas relações (ex: *esposa*, *amigo*, *filho*) e preferências.
-  - Grava automaticamente vínculos relacionais no Neocórtex (`usuario --[tem_relacao]--> pessoa`) e registros detalhados no Hipocampo, resgatando contexto social relevante a cada prompt.
+- **👥 Gestão 100% Automática da Rede Social & Círculo Afetivo (`social_core.py`)**:
+  - Mapeia automaticamente pessoas importantes do círculo social do usuário, suas relações (ex: *esposa*, *amigo*, *filho*) e preferências diretamente durante as conversas (`extrair_e_registrar_relacoes_automaticas`).
+  - Grava automaticamente vínculos relacionais no Neocórtex (`usuario --[tem_relacao]--> pessoa`) e registros detalhados no Hipocampo, disponibilizando uma interface em tempo real (`GET /api/social-network`).
 
 - **🔍 Introspecção & Autoconsciência de Arquitetura (`introspect.py`)**:
   - Varre e mapeia automaticamente os arquivos `.py` do projeto, registrando assinaturas de classes, funções e rotas FastAPI.
@@ -131,7 +133,8 @@ http://127.0.0.1:8000/dashboard
 | `POST` | `/api/prune-memory` | Executa manualmente a poda sináptica no Modo Humano |
 | `GET` | `/api/ollama-models` | Lista assincronamente os modelos instalados no Ollama local |
 | `POST` | `/api/set-ollama-model` | Altera e memoriza o modelo ativo do Ollama |
-| `POST` | `/api/register-social-person` | Cadastra ou atualiza uma pessoa e seu vínculo relacional na Rede Social do NIB |
+| `GET` | `/api/social-network` | Retorna a lista da Rede Social e vínculos mapeados automaticamente pelo NIB |
+| `POST` | `/api/register-social-person` | Cadastra ou atualiza manualmente uma pessoa e seu vínculo na Rede Social do NIB |
 | `POST` | `/api/kill-and-rebirth` | Limpa toda a memória do NIB e inicia um novo ciclo de vida |
 
 ---

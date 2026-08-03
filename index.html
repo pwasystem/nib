@@ -372,16 +372,14 @@
                     </small>
                 </div>
 
-                <!-- REDE SOCIAL E RELACIONAMENTOS (SOCIAL CORE) -->
+                <!-- REDE SOCIAL E RELACIONAMENTOS (AUTOMÁTICA) -->
                 <div class="panel-box">
-                    <h3><span>👥 Rede Social & Círculo Afetivo (Social Core)</span></h3>
-                    <div style="margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.4rem;">
-                        <input type="text" id="social-name-input" placeholder="Nome (ex: Maria)" style="padding: 0.4rem; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.78rem; outline: none;">
-                        <input type="text" id="social-rel-input" placeholder="Relação (ex: mãe, esposa, amigo)" style="padding: 0.4rem; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.78rem; outline: none;">
-                        <textarea id="social-details-input" placeholder="Detalhes e preferências (ex: gosta de café expresso e flores azuis)" rows="2" style="padding: 0.4rem; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.78rem; outline: none; resize: vertical;"></textarea>
-                        <button id="register-social-btn" style="padding: 0.45rem; background: #0284c7; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 0.8rem; cursor: pointer; transition: background 0.2s;">
-                            + Cadastrar / Atualizar Pessoa
-                        </button>
+                    <h3><span>👥 Círculo Social Mapeado (Automático)</span></h3>
+                    <small style="font-size: 0.75rem; color: #94a3b8; display: block; margin-top: 0.3rem; margin-bottom: 0.5rem;">
+                        O NIB identifica pessoas, laços e preferências automaticamente durante as conversas.
+                    </small>
+                    <div id="social-network-list" style="display: flex; flex-direction: column; gap: 0.35rem; max-height: 160px; overflow-y: auto; font-size: 0.78rem;">
+                        <span style="color: #64748b; font-style: italic;">Nenhuma relação detectada ainda.</span>
                     </div>
                 </div>
 
@@ -559,39 +557,30 @@
             }
         });
 
-        // REDE SOCIAL E RELACIONAMENTOS (SOCIAL CORE)
-        const registerSocialBtn = document.getElementById('register-social-btn');
-        if (registerSocialBtn) {
-            registerSocialBtn.addEventListener('click', async () => {
-                const nome = document.getElementById('social-name-input').value.trim();
-                const relacao = document.getElementById('social-rel-input').value.trim();
-                const detalhes = document.getElementById('social-details-input').value.trim();
-
-                if (!nome || !relacao) {
-                    showToast("⚠️ Preencha Nome e Relação para cadastrar.", "warning");
-                    return;
+        // REDE SOCIAL E RELACIONAMENTOS AUTOMÁTICOS
+        async function loadSocialNetwork() {
+            const container = document.getElementById('social-network-list');
+            if (!container) return;
+            try {
+                const resp = await fetch('/api/social-network');
+                const data = await resp.json();
+                if (data.status === 'success' && data.social_network && data.social_network.length > 0) {
+                    container.innerHTML = data.social_network.map(p => `
+                        <div style="background: rgba(2, 132, 199, 0.15); border: 1px solid rgba(2, 132, 199, 0.4); padding: 0.4rem 0.6rem; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <b style="color: #38bdf8;">👤 ${p.nome}</b>
+                                <span style="font-size: 0.72rem; color: #94a3b8; margin-left: 0.3rem;">(${p.relacao})</span>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    container.innerHTML = `<span style="color: #64748b; font-style: italic;">Nenhuma relação detectada ainda.</span>`;
                 }
-
-                try {
-                    const resp = await fetch('/api/register-social-person', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ nome, relacao, detalhes })
-                    });
-                    const data = await resp.json();
-                    if (data.status === 'success') {
-                        showToast(`✨ ${data.message}`, 'success');
-                        document.getElementById('social-name-input').value = '';
-                        document.getElementById('social-rel-input').value = '';
-                        document.getElementById('social-details-input').value = '';
-                    } else {
-                        showToast(`⚠️ ${data.message}`, 'error');
-                    }
-                } catch (err) {
-                    showToast("Erro ao cadastrar pessoa: " + err.message, 'error');
-                }
-            });
+            } catch (err) {
+                console.error("Erro ao carregar rede social:", err);
+            }
         }
+        loadSocialNetwork();
 
 		// JS do Chaveador Emocional Automático
 		const autoEmotionToggle = document.getElementById('auto-emotion-toggle');
@@ -854,6 +843,7 @@
                     aiMsgDiv.innerHTML = cleanStreamingText(fullMarkdown);
                     aiMsgDiv.querySelectorAll('pre code').forEach((block) => hljs.highlightElement(block));
                     chatContainer.scrollTop = chatContainer.scrollHeight;
+                    if (typeof loadSocialNetwork === 'function') loadSocialNetwork();
                     return;
                 }
                 const data = JSON.parse(event.data);

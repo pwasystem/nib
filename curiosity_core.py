@@ -14,13 +14,25 @@ class CuriosityCore:
         self.brain = brain_instance
         self.learning_goals = []  # Lista de metas: [{"id": "...", "topico": "...", "concluida": False}]
         self.ultimas_descobertas = [] # Registro recente de descobertas autônomas
+        self.topicos_pesquisados_recentes = [] # Histórico deslizante para evitar repetição do mesmo assunto
         self.interesses_padrao = [
             "inteligência artificial neuro-simbólica",
             "redes neurais biológicas e plasticidade sináptica",
             "computação quântica e algoritmos cognitivos",
             "filosofia da mente e consciência artificial",
-            "biomimética e sistemas adaptativos"
+            "biomimética e sistemas adaptativos",
+            "astrofísica e cosmologia computacional",
+            "psicologia cognitiva e tomada de decisão",
+            "neurociência computacional e memória"
         ]
+
+    def _registrar_topico_pesquisado(self, topico: str):
+        """Registra um tópico recém-pesquisado para evitar re-estudar o mesmo assunto repetidamente."""
+        t_clean = topico.strip().lower()
+        if t_clean and t_clean not in [x.lower() for x in self.topicos_pesquisados_recentes]:
+            self.topicos_pesquisados_recentes.append(t_clean)
+            if len(self.topicos_pesquisados_recentes) > 25:
+                self.topicos_pesquisados_recentes.pop(0)
 
     def obter_ultimas_descobertas(self, limit: int = 5) -> list:
         """Retorna a lista de descobertas autônomas mais recentes."""
@@ -63,68 +75,77 @@ class CuriosityCore:
     def obter_tema_interesse_ou_memoria(self) -> tuple[str, str]:
         """
         Extrai um tema baseado nas metas de aprendizado ativas, interesses da personalidade
-        ou nós da memória.
+        ou nós da memória, diversificando os assuntos de acordo com o perfil do NIB.
         Retorna (tema, origem)
         """
-        # 0. Priorizar Metas de Aprendizado Ativas definidas pelo usuário
+        # 0. Metas de Aprendizado Ativas do Usuário
         metas_ativas = [g for g in self.learning_goals if not g.get("concluida")]
-        if metas_ativas and random.random() < 0.8:
-            meta_escolhida = random.choice(metas_ativas)
+        metas_novas = [g for g in metas_ativas if g["topico"].lower() not in [x.lower() for x in self.topicos_pesquisados_recentes]]
+        if metas_novas and random.random() < 0.7:
+            meta_escolhida = random.choice(metas_novas)
             return meta_escolhida["topico"], f"meta_aprendizado ({meta_escolhida['topico']})"
-        # 1. Tentar utilizar os interesses característicos da personalidade ativa
+
+        # 1. Interesses Característicos da Personalidade Ativa
         try:
             if hasattr(self.brain, "active_personality") and self.brain.active_personality:
-                if hasattr(self.brain.active_personality, "get_interests"):
-                    interesses_persona = self.brain.active_personality.get_interests()
-                    if interesses_persona and random.random() < 0.6:
-                        tema_persona = random.choice(interesses_persona)
-                        return tema_persona, f"interesses ({self.brain.active_personality.name})"
+                interesses_persona = getattr(self.brain.active_personality, "get_interests", lambda: [])()
+                interesses_novos = [i for i in interesses_persona if i.lower() not in [x.lower() for x in self.topicos_pesquisados_recentes]]
+                if interesses_novos:
+                    tema_persona = random.choice(interesses_novos)
+                    p_name = getattr(self.brain.active_personality, "name", "Personalidade")
+                    return tema_persona, f"interesses ({p_name})"
         except Exception:
             pass
 
-        # 2. Tentar selecionar nós no Neocórtex
+        # 2. Selecionar nós aleatórios não pesquisados no Neocórtex
         try:
             nos = list(self.brain.neocortex.nodes())
-            if nos:
-                no_escolhido = random.choice(nos)
+            nos_novos = [n for n in nos if n.lower() not in [x.lower() for x in self.topicos_pesquisados_recentes] and len(n) > 3]
+            if nos_novos:
+                no_escolhido = random.choice(nos_novos)
                 vizinhos = list(self.brain.neocortex.neighbors(no_escolhido))
-                if vizinhos:
+                if vizinhos and random.random() < 0.5:
                     vizinho = random.choice(vizinhos)
                     return f"{no_escolhido} e {vizinho}", "neocortex"
                 return no_escolhido, "neocortex"
         except Exception:
             pass
 
-        # 3. Tentar resgatar memórias episódicas do Hipocampo
+        # 3. Resgatar memórias episódicas do Hipocampo
         try:
-            memorias = self.brain.hipocampo.get(limit=5, include=["documents"])
+            memorias = self.brain.hipocampo.get(limit=10, include=["documents"])
             if memorias and memorias.get("documents"):
-                doc = random.choice(memorias["documents"])
-                palavras = [p for p in doc.split() if len(p) > 4 and p.isalpha()]
-                if palavras:
-                    return random.choice(palavras), "hipocampo"
+                docs_shuffled = memorias["documents"].copy()
+                random.shuffle(docs_shuffled)
+                for doc in docs_shuffled:
+                    palavras = [p for p in doc.split() if len(p) > 4 and p.isalpha() and p.lower() not in [x.lower() for x in self.topicos_pesquisados_recentes]]
+                    if palavras:
+                        return random.choice(palavras), "hipocampo"
         except Exception:
             pass
 
-        # 4. Fallback: interesses espontâneos padrão
-        return random.choice(self.interesses_padrao), "interesse_espontaneo"
+        # 4. Fallback: interesses espontâneos padrão não recentes
+        padrao_novos = [i for i in self.interesses_padrao if i.lower() not in [x.lower() for x in self.topicos_pesquisados_recentes]]
+        fallback_list = padrao_novos if padrao_novos else self.interesses_padrao
+        return random.choice(fallback_list), "interesse_espontaneo"
 
     def pesquisa_criativa(self) -> dict:
         """
         Função de Criatividade ativada no Aprendizado Autônomo.
-        Formula uma pesquisa criativa a partir de tópicos na memória
-        ou interesses espontâneos, busca conhecimento e consolida a descoberta.
+        Formula uma pesquisa criativa a partir de tópicos da personalidade ou memória,
+        busca conhecimento e consolida a descoberta.
         """
         if not self.brain.learning_enabled:
             return None
 
         tema, origem = self.obter_tema_interesse_ou_memoria()
+        self._registrar_topico_pesquisado(tema)
         logger.log_criatividade(f"Módulo de Criatividade ativado! Origem: [{origem.upper()}] | Tema selecionado: '{tema}'")
 
         # Tenta utilizar o Ollama para formular uma busca criativa
         termo_pesquisa = f"avanços recentes sobre {tema}"
         try:
-            sys_p = "Você é o módulo de criatividade do NIB. Gere APENAS um termo de busca curto e fascinante para pesquisar sobre o tema fornecido. Responda APENAS o termo de busca sem explicações."
+            sys_p = "Você é o módulo de curiosidade do NIB. Gere APENAS um termo de busca curto e fascinante para pesquisar sobre o tema fornecido. Responda APENAS o termo de busca sem explicações."
             resp = requests.post(self.brain.ollama_url, json={
                 "model": self.brain.model_name,
                 "prompt": f"Tema de interesse: {tema}",
@@ -161,9 +182,8 @@ class CuriosityCore:
 
     def investigar_lacunas(self) -> dict:
         """
-        Identifica nós no Neocórtex com grau <= 2 (pouco conectados),
-        pesquisa sobre eles e memoriza o aprendizado no Hipocampo.
-        Se não houver lacunas simples, executa a pesquisa de criatividade.
+        Identifica lacunas conceituais no Neocórtex de forma estocástica e sem repetição,
+        preenchendo-as. Se não houver lacunas inéditas, executa a pesquisa criativa por personalidade.
         """
         if not self.brain.learning_enabled:
             return None
@@ -172,12 +192,15 @@ class CuriosityCore:
         try:
             for no in self.brain.neocortex.nodes():
                 if self.brain.neocortex.degree(no) <= 2 and len(no) > 3:
-                    lacunas.append(no)
+                    if no.lower() not in [x.lower() for x in self.topicos_pesquisados_recentes]:
+                        lacunas.append(no)
         except Exception:
             pass
 
         if lacunas:
-            conceito_orfa = lacunas[0]
+            # Escolha estocástica/aleatória das lacunas (NÃO estática lacunas[0])
+            conceito_orfa = random.choice(lacunas)
+            self._registrar_topico_pesquisado(conceito_orfa)
             logger.log_criatividade(f"Lacuna conceitual identificada no Neocórtex: '{conceito_orfa}'")
             conteudo_descoberto = self.pesquisar_web(f"o que e {conceito_orfa}")
 
@@ -195,5 +218,5 @@ class CuriosityCore:
                     self.ultimas_descobertas.pop(0)
                 return item
 
-        # Se não houver lacunas diretas, executa pesquisa criativa baseada em interesses/memória
+        # Se não houver lacunas inéditas ou se a busca falhar, executa pesquisa criativa por personalidade
         return self.pesquisa_criativa()
