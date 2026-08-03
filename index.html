@@ -372,6 +372,19 @@
                     </small>
                 </div>
 
+                <!-- REDE SOCIAL E RELACIONAMENTOS (SOCIAL CORE) -->
+                <div class="panel-box">
+                    <h3><span>👥 Rede Social & Círculo Afetivo (Social Core)</span></h3>
+                    <div style="margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.4rem;">
+                        <input type="text" id="social-name-input" placeholder="Nome (ex: Maria)" style="padding: 0.4rem; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.78rem; outline: none;">
+                        <input type="text" id="social-rel-input" placeholder="Relação (ex: mãe, esposa, amigo)" style="padding: 0.4rem; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.78rem; outline: none;">
+                        <textarea id="social-details-input" placeholder="Detalhes e preferências (ex: gosta de café expresso e flores azuis)" rows="2" style="padding: 0.4rem; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.78rem; outline: none; resize: vertical;"></textarea>
+                        <button id="register-social-btn" style="padding: 0.45rem; background: #0284c7; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 0.8rem; cursor: pointer; transition: background 0.2s;">
+                            + Cadastrar / Atualizar Pessoa
+                        </button>
+                    </div>
+                </div>
+
                 <!-- TEMPLATES E PRESETS DE PERSONALIDADE & EMOÇÃO -->
                 <div class="panel-box">
                     <h3><span>📜 Presets & Arquétipos (Personalidade & Emoções)</span></h3>
@@ -545,6 +558,40 @@
                 document.getElementById('chat-container').appendChild(box);
             }
         });
+
+        // REDE SOCIAL E RELACIONAMENTOS (SOCIAL CORE)
+        const registerSocialBtn = document.getElementById('register-social-btn');
+        if (registerSocialBtn) {
+            registerSocialBtn.addEventListener('click', async () => {
+                const nome = document.getElementById('social-name-input').value.trim();
+                const relacao = document.getElementById('social-rel-input').value.trim();
+                const detalhes = document.getElementById('social-details-input').value.trim();
+
+                if (!nome || !relacao) {
+                    showToast("⚠️ Preencha Nome e Relação para cadastrar.", "warning");
+                    return;
+                }
+
+                try {
+                    const resp = await fetch('/api/register-social-person', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ nome, relacao, detalhes })
+                    });
+                    const data = await resp.json();
+                    if (data.status === 'success') {
+                        showToast(`✨ ${data.message}`, 'success');
+                        document.getElementById('social-name-input').value = '';
+                        document.getElementById('social-rel-input').value = '';
+                        document.getElementById('social-details-input').value = '';
+                    } else {
+                        showToast(`⚠️ ${data.message}`, 'error');
+                    }
+                } catch (err) {
+                    showToast("Erro ao cadastrar pessoa: " + err.message, 'error');
+                }
+            });
+        }
 
 		// JS do Chaveador Emocional Automático
 		const autoEmotionToggle = document.getElementById('auto-emotion-toggle');

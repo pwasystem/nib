@@ -33,6 +33,7 @@ STORAGE_DIR = os.path.join(BASE_DIR, "nib_storage")
 HIPPOCAMPUS_DIR = os.path.join(STORAGE_DIR, "hippocampus")
 NEOCORTEX_FILE = os.path.join(STORAGE_DIR, "neocortex_graph.json")
 SYNAPTIC_JOURNAL = os.path.join(STORAGE_DIR, "synaptic_journal.jsonl")
+INTROSPECT_CACHE_FILE = os.path.join(STORAGE_DIR, "introspect_capacities.json")
 
 HUMAN_STORAGE_DIR = os.path.join(STORAGE_DIR, "memoria_humana")
 PERFECT_STORAGE_DIR = os.path.join(BASE_DIR, "memoria_perfeita_db")

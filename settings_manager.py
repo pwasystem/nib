@@ -19,7 +19,8 @@ DEFAULT_SETTINGS = {
         "n_pct": 20
     },
     "emotion_enabled": True,
-    "auto_emotion": False
+    "auto_emotion": False,
+    "subconscious_enabled": False
 }
 
 def load_settings() -> dict:

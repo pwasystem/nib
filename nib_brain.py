@@ -15,6 +15,7 @@ from bs4 import BeautifulSoup
 import config
 import logger_nib as logger
 from working_memory import WorkingMemory
+from introspect import NIBIntrospector
 
 class NeuroInformatikBrain:
     """
@@ -48,7 +49,48 @@ class NeuroInformatikBrain:
         self.ollama_url = config.OLLAMA_URL
         self.model_name = config.OLLAMA_MODEL
 
+        # 5. INTROSPECÇÃO E AUTOCONSCIÊNCIA DE CÓDIGO
+        self.introspector = NIBIntrospector()
+        self.capacidades_codigo = self.carregar_autoconsciencia()
+
         logger.log_nib("NIB INIT", f"Cérebro inicializado no Modo: [{self.memory_mode.upper()}] | Working Memory Cap: {self.working_memory.capacity}", logger.Colors.BRIGHT_CYAN)
+
+    def _bootstrap_neocortex_capacidades(self):
+        """Inicializa nós e conexões fundamentais da arquitetura do NIB no Neocórtex."""
+        sinapses_base = [
+            ("nib", "modulo", "hipocampo"),
+            ("nib", "modulo", "neocortex"),
+            ("nib", "modulo", "cortex_pre_frontal"),
+            ("nib", "modulo", "sistema_limbico"),
+            ("nib", "capacidade", "introspeccao_codigo"),
+            ("nib", "capacidade", "pensamento_subconsciente"),
+            ("nib", "capacidade", "aprendizado_autonomo"),
+            ("subconsciente", "diretriz", "evolucao_sem_sofrimento"),
+            ("neocortex", "metodologia", "graphrag_networkx"),
+            ("hipocampo", "banco_vetorial", "chromadb")
+        ]
+        agora = int(time.time())
+        for s, r, o in sinapses_base:
+            self.consolidar_sinapse(s, r, o, agora)
+
+    def carregar_autoconsciencia(self, force_refresh: bool = False, bootstrap_neocortex: bool = False) -> str:
+        """Carrega do cache/gera as capacidades técnicas, indexa no Hipocampo e opcionalmente povoa o Neocórtex."""
+        conteudo = self.introspector.obter_ou_gerar_capacidades(force_refresh=force_refresh)
+        try:
+            res = self.hipocampo.get(ids=["nib_introspect_capacities"])
+            if not res or not res.get("ids"):
+                self.hipocampo.add(
+                    documents=[conteudo],
+                    metadatas=[{"tipo": "autoconsciencia_codigo", "fonte": "introspect.py"}],
+                    ids=["nib_introspect_capacities"]
+                )
+                logger.log_nib("INTROSPECÇÃO", "Capacidades de código memorizadas no Hipocampo com sucesso.", logger.Colors.BRIGHT_GREEN)
+        except Exception as e:
+            logger.log_warning(f"[INTROSPECÇÃO] Não foi possível indexar no Hipocampo: {e}")
+
+        if bootstrap_neocortex:
+            self._bootstrap_neocortex_capacidades()
+        return conteudo
 
 
 
@@ -130,7 +172,16 @@ class NeuroInformatikBrain:
                         json.dump(nx.node_link_data(self.neocortex), tf, ensure_ascii=False, indent=2)
                         temp_name = tf.name
 
-                    os.replace(temp_name, self.neocortex_path)
+                    try:
+                        os.replace(temp_name, self.neocortex_path)
+                    except Exception:
+                        with open(self.neocortex_path, "w", encoding="utf-8") as f:
+                            json.dump(nx.node_link_data(self.neocortex), f, ensure_ascii=False, indent=2)
+                        if os.path.exists(temp_name):
+                            try:
+                                os.remove(temp_name)
+                            except Exception:
+                                pass
                 except Exception as e:
                     logger.log_warning(f"Erro ao salvar Neocórtex atômico: {e}")
         threading.Thread(target=_salvar_bg, daemon=True).start()
@@ -232,25 +283,49 @@ class NeuroInformatikBrain:
         # Extração de Triplas para Neocórtex em thread assíncrona não-bloqueante
         def _extrair_e_consolidar_bg(txt, timestamp):
             sys_p = 'Extraia triplas de conhecimento no formato JSON estrito: {"triplas": [{"sujeito": "...", "relacao": "...", "objeto": "..."}]}. APENAS JSON.'
+            triplas = []
             try:
                 r = requests.post(self.ollama_url, json={
                     "model": self.model_name, 
                     "prompt": f"Texto para consolidar: '{txt}'", 
                     "system": sys_p, 
                     "stream": False
-                }, timeout=10).json().get("response", "")
+                }, timeout=8).json().get("response", "")
                 
                 i, f = r.find("{"), r.rfind("}") + 1
                 if i != -1 and f != -1 and f > i:
                     data = json.loads(r[i:f])
-                    if isinstance(data, dict):
-                        for t in data.get("triplas", []):
-                            if isinstance(t, dict) and "sujeito" in t and "relacao" in t and "objeto" in t:
-                                self.consolidar_sinapse(t["sujeito"], t["relacao"], t["objeto"], timestamp)
+                    if isinstance(data, dict) and "triplas" in data:
+                        triplas = data["triplas"]
             except Exception:
                 pass
 
+            # Fallback heurístico se LLM não extraiu triplas estruturadas
+            if not triplas:
+                triplas = self.extrair_triplas_heuristica(txt)
+
+            for t in triplas:
+                if isinstance(t, dict) and "sujeito" in t and "relacao" in t and "objeto" in t:
+                    self.consolidar_sinapse(t["sujeito"], t["relacao"], t["objeto"], timestamp)
+
         threading.Thread(target=_extrair_e_consolidar_bg, args=(texto, ts), daemon=True).start()
+
+    def extrair_triplas_heuristica(self, texto: str) -> list:
+        """Fallback de extração sintática quando a chamada LLM falhar ou expirar."""
+        import re
+        txt_clean = re.sub(r'^(Usuário|NIB|Subconsciente|Pesquisa|Conhecimento)[^:]*:\s*', '', texto, flags=re.IGNORECASE)
+        palavras = [re.sub(r'[^\w]', '', p).lower() for p in txt_clean.split() if len(p) >= 4]
+        
+        stop_words = {"para", "como", "sobre", "qual", "quais", "onde", "quando", "porque", "esta", "estao", "este", "essa", "isso", "aquilo", "mais", "muito", "voce", "estou", "estamos", "resposta", "pergunta"}
+        termos = [p for p in palavras if p and p not in stop_words]
+        
+        triplas = []
+        if len(termos) >= 2:
+            s = termos[0]
+            for o in termos[1:4]:
+                if s != o:
+                    triplas.append({"sujeito": s, "relacao": "relacionado_a", "objeto": o})
+        return triplas
 
     # --------------------------------------------------
     # --------------------------------------------------
@@ -749,8 +824,14 @@ class NeuroInformatikBrain:
             logger.log_warning(f"Erro ao consultar Hipocampo: {e}")
 
         # 2. RAG Relacional (Neocórtex - GraphRAG/NetworkX)
-        palavras = [p.strip().lower() for p in consulta.split() if len(p) > 3]
-        for p in palavras:
+        palavras_brutas = [p.strip().lower() for p in consulta.split() if len(p) > 2]
+        nos_alvo = set()
+        for p in palavras_brutas:
+            if p: nos_alvo.add(p)
+            p_norm = self.normalizar_entidade(p)
+            if p_norm: nos_alvo.add(p_norm)
+
+        for p in nos_alvo:
             if self.neocortex.has_node(p):
                 for vz in self.neocortex.neighbors(p):
                     edge = self.neocortex[p][vz]

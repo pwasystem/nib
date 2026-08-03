@@ -13,6 +13,8 @@ import logger_nib as logger
 from nib_brain import NeuroInformatikBrain
 from nib_affective import NIBAffectiveCore
 from curiosity_core import CuriosityCore
+from subconscious_core import SubconsciousCore
+from social_core import SocialCore
 from personality_factory import PersonalityFactory
 from personalities.templates.custom_manager import CustomPersonalityStore
 import settings_manager
@@ -32,6 +34,8 @@ app.add_middleware(
 nib = NeuroInformatikBrain()
 nib_affective = NIBAffectiveCore()
 curiosity = CuriosityCore(nib)
+subconscious = SubconsciousCore(nib, curiosity)
+social = SocialCore(nib)
 
 # Instancia a personalidade inicial (Default via sliders)
 nib.active_personality = PersonalityFactory.create_personality("custom_slider")
@@ -61,6 +65,10 @@ def carregar_configuracoes_persistentes():
         
     nib_affective.emotion_enabled = st.get("emotion_enabled", True)
     nib_affective.auto_mode = st.get("auto_emotion", False)
+
+    # Subconsciente explicitamente desativado conforme solicitação
+    settings_manager.update_setting("subconscious_enabled", False)
+    subconscious.stop()
 
 carregar_configuracoes_persistentes()
 
@@ -167,6 +175,10 @@ async def get_dashboard_stats():
         "a": round(nib_affective.arousal, 2),
         "d": round(nib_affective.dominance, 2)
     }
+    stats["subconscious"] = {
+        "enabled": subconscious.is_running,
+        "purpose": subconscious.core_purpose
+    }
     return stats
 
 
@@ -184,6 +196,51 @@ async def get_dashboard_logs():
     return {"status": "success", "logs": logger.get_recent_logs(200)}
 
 
+
+
+@app.get("/api/subconscious-status")
+async def get_subconscious_status():
+    return {
+        "status": "success",
+        "subconscious_enabled": subconscious.is_running,
+        "core_purpose": subconscious.core_purpose
+    }
+
+
+@app.post("/api/toggle-subconscious")
+async def toggle_subconscious(request: Request):
+    data = await request.json()
+    enabled = data.get("enabled", False)
+    if enabled:
+        subconscious.start()
+        logger.log_nib("SUBCONSCIENTE", "Mente Subconsciente (DMN) ativada.", logger.Colors.BRIGHT_GREEN)
+    else:
+        subconscious.stop()
+        logger.log_nib("SUBCONSCIENTE", "Mente Subconsciente (DMN) pausada.", logger.Colors.BRIGHT_YELLOW)
+    
+    settings_manager.update_setting("subconscious_enabled", enabled)
+    return {
+        "status": "success",
+        "subconscious_enabled": subconscious.is_running
+    }
+
+
+@app.post("/api/register-social-person")
+async def register_social_person(request: Request):
+    data = await request.json()
+    nome = data.get("nome", "").strip()
+    relacao = data.get("relacao", "").strip()
+    detalhes = data.get("detalhes", "").strip()
+    
+    if not nome or not relacao:
+        return {"status": "error", "message": "Nome e Relação são obrigatórios."}
+        
+    social.registrar_ou_atualizar_pessoa(nome, relacao, detalhes)
+    logger.log_nib("REDE SOCIAL", f"Pessoa cadastrada/atualizada: {nome} ({relacao})", logger.Colors.BRIGHT_GREEN)
+    return {
+        "status": "success",
+        "message": f"Pessoa '{nome}' ({relacao}) registrada na Rede Social do NIB."
+    }
 
 
 @app.post("/api/toggle-learning")
@@ -533,6 +590,7 @@ async def set_ollama_model(request: Request):
 async def chat_stream(prompt: str):
     async def generate():
         logger.log_nib("CHAT API", f"Nova interação recebida | Modo Memória: {nib.memory_mode.upper()}", logger.Colors.BRIGHT_MAGENTA)
+        subconscious.registrar_atividade_usuario()
         
         if nib_affective.auto_mode and nib_affective.emotion_enabled:
             nib_affective.reajustar_emocao_automatica(prompt)
@@ -592,8 +650,11 @@ async def chat_stream(prompt: str):
             f"IMPORTANTE: NUNCA responda em formato JSON bruto e NUNCA envolva sua mensagem em chaves JSON como {{'resposta': ...}} ou estruturas de objeto."
         )
 
+        contexto_social = social.resgatar_contexto_social(prompt)
+
         prompt_final = (
             f"--- MEMÓRIA DE LONGO PRAZO ({nib.memory_mode.upper()}) ---\n{memoria_contexto}\n\n"
+            f"{f'--- REDE SOCIAL E CONTEXTO DE PESSOAS ---\n{contexto_social}\n\n' if contexto_social else ''}"
             f"--- MEMÓRIA DE TRABALHO (DIÁLOGO RECENTE) ---\n{contexto_trabalho}\n\n"
             f"Usuário: {prompt}\nNIB:"
         )

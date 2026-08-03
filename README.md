@@ -44,6 +44,14 @@
   - Extração de triplas conceituais do Neocórtex via Ollama executada de forma **totalmente assíncrona em background threads** (`threading.Thread`).
   - Gravação atômica em disco do grafo Neocortical (`_salvar_neocortex`) não-bloqueante, eliminando totalmente pausas e latências no fluxo de resposta do chat.
 
+- **👥 Gestão de Rede Social & Círculo Afetivo (`social_core.py`)**:
+  - Mapeia pessoas importantes do círculo social do usuário/NIB, suas relações (ex: *esposa*, *amigo*, *filho*) e preferências.
+  - Grava automaticamente vínculos relacionais no Neocórtex (`usuario --[tem_relacao]--> pessoa`) e registros detalhados no Hipocampo, resgatando contexto social relevante a cada prompt.
+
+- **🔍 Introspecção & Autoconsciência de Arquitetura (`introspect.py`)**:
+  - Varre e mapeia automaticamente os arquivos `.py` do projeto, registrando assinaturas de classes, funções e rotas FastAPI.
+  - Mantém o NIB com autoconsciência de suas capacidades técnicas e estrutura de código, salvando o mapa em cache JSON (`introspect_capacities.json`), indexando no Hipocampo e realizando bootstrap de nós no Neocórtex.
+
 - **🏷️ Categorização e Organização Estruturada da Memória Episódica**:
   - Indexação categorizada por metadados no Hipocampo (ChromaDB): `dialogo` (conversas diretas com o usuário), `aprendizado_autonomo` (descobertas da curiosidade) e `pesquisa_web` (artigos e referências externas).
   - Formatação estruturada dos registros recuperados pelo RAG Híbrido em seções com cabeçalhos nítidos (*Diálogos Passados*, *Descobertas Autônomas*, *Pesquisas Web*, *Conexões Semânticas do Neocórtex*), maximizando a compreensão pelo LLM.
@@ -123,6 +131,7 @@ http://127.0.0.1:8000/dashboard
 | `POST` | `/api/prune-memory` | Executa manualmente a poda sináptica no Modo Humano |
 | `GET` | `/api/ollama-models` | Lista assincronamente os modelos instalados no Ollama local |
 | `POST` | `/api/set-ollama-model` | Altera e memoriza o modelo ativo do Ollama |
+| `POST` | `/api/register-social-person` | Cadastra ou atualiza uma pessoa e seu vínculo relacional na Rede Social do NIB |
 | `POST` | `/api/kill-and-rebirth` | Limpa toda a memória do NIB e inicia um novo ciclo de vida |
 
 ---
