@@ -121,23 +121,51 @@ def buscar_diretorio_academico(query: str) -> list:
 
     return resultados
 
-def buscar_web_convencional(query: str) -> list:
-    logger.log_busca(f"Fallback ativado. Pesquisando na web: '{query}'...")
+def buscar_archive_org(query: str) -> list:
     resultados = []
+    logger.log_busca(f"Pesquisando no Archive.org: '{query}'...")
     try:
-        url_ddg = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(query)}"
+        url_archive = f"https://archive.org/advancedsearch.php?q={urllib.parse.quote(query)}&fl[]=title,description,identifier,publicdate,mediatype&sort[]=&rows=3&page=1&output=json"
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
-        resp = requests.get(url_ddg, headers=headers, timeout=5)
-        soup = BeautifulSoup(resp.text, 'html.parser')
-        
-        for a in soup.find_all('a', class_='result__snippet', limit=2):
-            resultados.append(f"[Web Result]: {a.get_text().strip()}")
+        resp = requests.get(url_archive, headers=headers, timeout=5).json()
+        docs = resp.get("response", {}).get("docs", [])
+        for doc in docs:
+            titulo = doc.get("title", "")
+            if isinstance(titulo, list):
+                titulo = " ".join(titulo)
+            desc = doc.get("description", "")
+            if isinstance(desc, list):
+                desc = " ".join(desc)
+            if desc:
+                desc = BeautifulSoup(desc, "html.parser").get_text().strip()
+            ident = doc.get("identifier", "")
+            if titulo:
+                snippet = f"[Archive.org] Título: {titulo}"
+                if desc:
+                    snippet += f" | Descrição: {desc[:200]}..."
+                if ident:
+                    snippet += f" | ID: {ident}"
+                resultados.append(snippet)
     except Exception:
         pass
+
+    if not resultados:
+        try:
+            url_ddg_archive = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote('site:archive.org ' + query)}"
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+            resp = requests.get(url_ddg_archive, headers=headers, timeout=5)
+            soup = BeautifulSoup(resp.text, 'html.parser')
+            for a in soup.find_all('a', class_='result__snippet', limit=2):
+                resultados.append(f"[Archive.org Web]: {a.get_text().strip()}")
+        except Exception:
+            pass
+
     return resultados
 
 def pesquisar_conhecimento_externo(query: str) -> str:
     resultados = buscar_diretorio_academico(query)
+    if not resultados:
+        resultados = buscar_archive_org(query)
     if not resultados:
         resultados = buscar_web_convencional(query)
         

@@ -336,26 +336,35 @@ class NeuroInformatikBrain:
         import re
         q = query.strip()
         
-        patterns = [
-            r'(?:busque|pesquise|procure|sobre|termo)\s+(?:por\s+)?["\']?([^"\'.!?\n]+)["\']?',
-        ]
-        for pat in patterns:
-            m = re.search(pat, q, re.IGNORECASE)
-            if m:
-                candidate = m.group(1).strip()
-                cand_clean = re.sub(r'\b(não|nao|está|esta|errado|errada|correto|de verdade|por favor)\b.*$', '', candidate, flags=re.IGNORECASE).strip()
-                if len(cand_clean) >= 2:
-                    return cand_clean
+        # 1. Se houver algo entre aspas, prioriza como termo exato
+        m_aspas = re.search(r'["\']([^"\']+)["\']', q)
+        if m_aspas and len(m_aspas.group(1).strip()) >= 2:
+            return m_aspas.group(1).strip()
 
-        ruidos = [
-            "olá nib", "ola nib", "falei para você que", "falei para voce que", 
-            "não está correto", "nao esta correto", "pesquise e descubra o que é de verdade",
-            "ainda está errado", "ainda esta errado", "busque", "pesquise", "procure", 
-            "veja a letra da musica", "veja a letra da música", "o que é", "o que e"
+        # 2. Limpeza de prefixos conversacionais e instruções de busca
+        prefixos = [
+            r'^(?:olá|ola)?\s*nib,?\s*',
+            r'^(?:por favor,?\s*)?(?:busque|pesquise|procure)\s+(?:por|sobre|no|na|em)?\s*',
+            r'^(?:veja|confira)\s+(?:a|o)?\s*',
+            r'^(?:o que é|o que e|quem foi|quem é|quem e)\s+'
         ]
         q_clean = q
+        for p in prefixos:
+            q_clean = re.sub(p, "", q_clean, flags=re.IGNORECASE)
+
+        ruidos = [
+            "falei para você que", "falei para voce que", 
+            "não está correto", "nao esta correto", "pesquise e descubra o que é de verdade",
+            "ainda está errado", "ainda esta errado", "por favor"
+        ]
         for r in ruidos:
             q_clean = re.sub(re.escape(r), "", q_clean, flags=re.IGNORECASE)
+        
+        # Remove especificadores de repositório se o termo restante for suficiente
+        q_sem_repo = re.sub(r'^(?:archive\.org|wayback|arquivo histórico|arquivo historico|site antigo|página antiga|versão antiga|versao antiga)\s+(?:de|da|do|sobre|a)?\s*', "", q_clean, flags=re.IGNORECASE).strip()
+        if len(q_sem_repo) >= 2:
+            q_clean = q_sem_repo
+
         q_clean = q_clean.strip(" ,.!?\"'")
         return q_clean if len(q_clean) >= 2 else query
 
@@ -509,40 +518,161 @@ class NeuroInformatikBrain:
 
         return resultados
 
+    def buscar_archive_org(self, query: str) -> list:
+        resultados = []
+        logger.log_pesquisa_web(f"Pesquisa Web (Archive.org) por: '{query}'")
+        logger.log_busca_archive_org(f"Buscando arquivos históricos e repositório Archive.org para: '{query}'...")
+        
+        # 1. Internet Archive Advanced Search API
+        try:
+            url_archive = f"https://archive.org/advancedsearch.php?q={urllib.parse.quote(query)}&fl[]=title,description,identifier,publicdate,mediatype&sort[]=&rows=3&page=1&output=json"
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+            resp = requests.get(url_archive, headers=headers, timeout=5).json()
+            docs = resp.get("response", {}).get("docs", [])
+            for doc in docs:
+                titulo = doc.get("title", "")
+                if isinstance(titulo, list):
+                    titulo = " ".join(titulo)
+                desc = doc.get("description", "")
+                if isinstance(desc, list):
+                    desc = " ".join(desc)
+                if desc:
+                    desc = BeautifulSoup(desc, "html.parser").get_text().strip()
+                ident = doc.get("identifier", "")
+                if titulo:
+                    snippet = f"[Archive.org] Título: {titulo}"
+                    if desc:
+                        snippet += f" | Descrição: {desc[:200]}..."
+                    if ident:
+                        snippet += f" | ID: {ident}"
+                    resultados.append(snippet)
+        except Exception:
+            pass
+
+        # 2. DuckDuckGo site:archive.org Fallback
+        if not resultados:
+            try:
+                url_ddg_archive = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote('site:archive.org ' + query)}"
+                headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+                resp = requests.get(url_ddg_archive, headers=headers, timeout=5)
+                soup = BeautifulSoup(resp.text, 'html.parser')
+                for a in soup.find_all('a', class_='result__snippet', limit=2):
+                    resultados.append(f"[Archive.org Web]: {a.get_text().strip()}")
+            except Exception:
+                pass
+
+        if resultados:
+            logger.log_busca_archive_org(f"Encontrados {len(resultados)} resultados no Archive.org.")
+        else:
+            logger.log_busca_archive_org("Nenhum registro encontrado no Archive.org.")
+
+        return resultados
+
+    def analisar_e_formular_busca(self, query: str) -> tuple[str, str]:
+        """
+        Analisa a questão para descobrir o que o usuário realmente quer (intenção)
+        e formula uma consulta de busca coerente e otimizada.
+        Retorna (servico_recomendado, query_otimizada).
+        Serviços possíveis: 'archive_org', 'academico', 'wikipedia', 'noticias', 'web'.
+        """
+        q_lower = query.lower()
+
+        # Tenta utilizar o LLM (Ollama) para classificação de intenção e reformulação da busca se disponível
+        try:
+            sys_prompt = (
+                "Você é o módulo de análise de intenção de busca do NIB.\n"
+                "Sua tarefa é analisar a pergunta do usuário, descobrir o que ele REALMENTE deseja encontrar "
+                "e responder em formato JSON estrito com os campos:\n"
+                "- 'servico': o serviço de busca mais adequado entre 'archive_org' (sites antigos, páginas web arquivadas, documentos históricos, livros raros, wayback), "
+                "'academico' (artigos científicos, física, matemática, pesquisas), "
+                "'wikipedia' (conceitos, definições, cultura, pessoas, biografias, termos gerais), "
+                "'noticias' (acontecimentos atuais, notícias recentes) ou 'web' (busca geral no web/tendências).\n"
+                "- 'query_otimizada': o termo de busca limpo, direto e coerente em poucas palavras para ser enviado ao serviço.\n"
+                "Exemplo JSON: {\"servico\": \"archive_org\", \"query_otimizada\": \"geocities web archive 1999\"}\n"
+                "Retorne APENAS o JSON."
+            )
+            resp_raw = requests.post(self.ollama_url, json={
+                "model": self.model_name,
+                "prompt": f"Pergunta do usuário: '{query}'",
+                "system": sys_prompt,
+                "stream": False
+            }, timeout=3).json().get("response", "").strip()
+
+            inicio = resp_raw.find("{")
+            fim = resp_raw.rfind("}") + 1
+            if inicio != -1 and fim != -1:
+                dados = json.loads(resp_raw[inicio:fim])
+                servico = dados.get("servico", "").lower()
+                q_opt = dados.get("query_otimizada", "").strip()
+                if servico in ["archive_org", "academico", "wikipedia", "noticias", "web"] and q_opt:
+                    logger.log_pesquisa_web(f"Intenção analisada via LLM: Serviço=[{servico.upper()}] | Query Otimizada='{q_opt}'")
+                    return servico, q_opt
+        except Exception:
+            pass
+
+        # Fallback baseado em heurísticas para garantir funcionamento offline/rápido
+        termo_limpo = self.extrair_termo_busca(query)
+
+        # 1. Archive.org / Arquivo Histórico / Wayback
+        palavras_archive = ["archive.org", "archive", "wayback", "antigo", "historico", "histórico", "arquivo histórico", "página antiga", "versao antiga", "geocities"]
+        if any(p in q_lower for p in palavras_archive):
+            return "archive_org", termo_limpo
+
+        # 2. Acadêmico / Científico
+        if self.eh_termo_cientifico(termo_limpo) or any(p in q_lower for p in ["artigo", "paper", "pesquisa científica", "arxiv"]):
+            return "academico", termo_limpo
+
+        # 3. Notícias / Atualidades
+        if any(p in q_lower for p in ["notícia", "noticia", "hoje", "últimas notícias", "recente", "guerra", "eleição", "eleicao"]):
+            return "noticias", termo_limpo
+
+        # 4. Wikipedia (Definições / Cultura / Conceitos)
+        if any(p in q_lower for p in ["o que é", "o que e", "quem foi", "significado", "história de", "historia de", "quem é"]):
+            return "wikipedia", termo_limpo
+
+        # 5. Default: Wikipedia se termo isolado/curto, senão Web
+        if len(termo_limpo.split()) <= 4:
+            return "wikipedia", termo_limpo
+
+        return "web", termo_limpo
+
     def pesquisar_conhecimento_externo(self, query: str, apenas_academico: bool = False) -> str:
         """
-        Pesquisa externa em camadas:
-          1. Wikipedia (Primeiro Lugar para definições e cultura) / Busca Acadêmica (se for termo científico)
-          2. Repositórios Acadêmicos (arXiv / OpenAlex)
-          3. Notícias Recentes
-          4. Tendências e Web Geral
+        Pesquisa externa orientada à intenção real do usuário:
+          1. Analisa a pergunta e formula consulta otimizada.
+          2. Roteia para o serviço mais adequado (Archive.org, Acadêmico, Wikipedia, Notícias, Web).
+          3. Aplica fallback em camadas caso o serviço prioritário não encontre resultados.
         """
-        termo_limpo = self.extrair_termo_busca(query)
-        logger.log_pesquisa_web(f"Pesquisa externa disparada na web para a consulta: '{query}' (Termo limpo: '{termo_limpo}')")
-        
+        if apenas_academico:
+            servico_recomendado = "academico"
+            termo_otimizado = self.extrair_termo_busca(query)
+        else:
+            servico_recomendado, termo_otimizado = self.analisar_e_formular_busca(query)
+
+        logger.log_pesquisa_web(f"Pesquisa externa acionada para consulta: '{query}' -> Intenção: [{servico_recomendado.upper()}] | Termo Otimizado: '{termo_otimizado}'")
+
         resultados = []
-        is_cientifico = self.eh_termo_cientifico(termo_limpo)
-        
-        # Se for termo científico ou for solicitada busca estritamente acadêmica, inicia pela busca acadêmica
-        if is_cientifico or apenas_academico:
-            logger.log_busca_academica(f"Termo científico/acadêmico detectado. Iniciando busca acadêmica: '{termo_limpo}'")
-            resultados = self.buscar_diretorio_academico(termo_limpo)
 
-        # 1. Wikipedia em primeiro lugar para termos gerais, culturais, termos de música, etc.
-        if not resultados and not apenas_academico:
-            resultados = self.buscar_wikipedia(termo_limpo)
+        # Mapeamento dos motores de busca disponíveis
+        executores = {
+            "archive_org": lambda q: self.buscar_archive_org(q),
+            "academico": lambda q: self.buscar_diretorio_academico(q),
+            "wikipedia": lambda q: self.buscar_wikipedia(q),
+            "noticias": lambda q: self.buscar_noticias(q),
+            "web": lambda q: self.buscar_tendencias_e_web(q)
+        }
 
-        # 2. Busca Acadêmica (se não for termo científico e Wikipedia falhou)
-        if not resultados and not is_cientifico and not apenas_academico:
-            resultados = self.buscar_diretorio_academico(termo_limpo)
+        # 1. Executa o serviço recomendado prioritariamente
+        if servico_recomendado in executores:
+            resultados = executores[servico_recomendado](termo_otimizado)
 
-        # 3. Busca de Notícias
-        if not resultados and not apenas_academico:
-            resultados = self.buscar_noticias(termo_limpo)
-
-        # 4. Tendências e Web Geral (fallback final)
-        if not resultados and not apenas_academico:
-            resultados = self.buscar_tendencias_e_web(termo_limpo)
+        # 2. Ordem de Fallback se o serviço recomendado não retornar resultados
+        ordem_fallback = ["wikipedia", "archive_org", "academico", "noticias", "web"]
+        for serv in ordem_fallback:
+            if resultados:
+                break
+            if serv != servico_recomendado and (not apenas_academico or serv == "academico"):
+                resultados = executores[serv](termo_otimizado)
 
         if not resultados:
             return "Nenhuma informação externa encontrada."
@@ -551,13 +681,13 @@ class NeuroInformatikBrain:
 
         # Resumo sintético da web para remover ruído antes de indexar no ChromaDB
         if getattr(config, "ENABLE_WEB_SUMMARIZATION", True):
-            conteudo = self.resumir_conhecimento_externo(termo_limpo, conteudo_bruto)
+            conteudo = self.resumir_conhecimento_externo(termo_otimizado, conteudo_bruto)
         else:
             conteudo = conteudo_bruto
         
         # Salva o aprendizado na memória
         id_novo = f"ext_mem_{int(time.time())}"
-        self.memorizar_experiencia(f"Conhecimento pesquisado sobre '{termo_limpo}': {conteudo}", categoria="pesquisa_web")
+        self.memorizar_experiencia(f"Conhecimento pesquisado sobre '{termo_otimizado}': {conteudo}", categoria="pesquisa_web")
         
         return conteudo
 

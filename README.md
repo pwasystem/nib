@@ -25,8 +25,14 @@
   - Etapa inteligente de limpeza e canonização antes da inserção de nós no Neocórtex.
   - Remove acentos, pontuações, artigos/conectivos e singulariza plurais em português (ex: *"A Teoria da Relatividade"* $\rightarrow$ *"teoria da relatividade"*), fundindo conceitos equivalentes e evitando a fragmentação do grafo.
 
-- **🌐 Busca Externa em Camadas com Resumo Sintético**:
-  - Quando a informação está ausente na memória local (Hipocampo/Neocórtex), aciona uma pesquisa em 4 etapas (Wikipedia ➔ Acadêmica ➔ Notícias ➔ Tendências/Web).
+- **🌐 Busca Externa com Análise de Intenção & Repositório Archive.org**:
+  - **Análise de Intenção & Formulação Coerente (`analisar_e_formular_busca`)**: Analisa a pergunta do usuário para descobrir o que ele *realmente* deseja encontrar e gera uma consulta de busca limpa, direta e otimizada.
+  - **Roteamento Inteligente & Repositórios**: Direciona automaticamente a consulta para o serviço mais adequado entre:
+    - **🏛️ Archive.org**: Páginas web arquivadas, livros e documentos históricos (`buscar_archive_org`).
+    - **📚 Wikipedia**: Conceitos, biografias e definições gerais (`buscar_wikipedia`).
+    - **🎓 Acadêmico**: Artigos científicos e papers (`arXiv` e `OpenAlex`).
+    - **📰 Notícias**: Notícias recentes e acontecimentos atuais.
+    - **🔥 Web Geral**: Tendências e resultados web gerais (`DuckDuckGo`).
   - Conteúdos raspados da web passam por um processo prévio de **síntese e despoluição via LLM** (`resumir_conhecimento_externo`), extraindo apenas fatos limpos antes da indexação no ChromaDB.
 
 - **🎭 Sistema Extensível de Templates de Personalidade & Emoção (`personalities/templates/`)**:

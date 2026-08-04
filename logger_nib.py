@@ -120,6 +120,10 @@ def log_busca_tendencias(msg: str):
     _append_log("BUSCA TENDÊNCIAS", msg, "info")
     _safe_print(f"{Colors.BRIGHT_CYAN}🔥 [BUSCA TENDÊNCIAS/WEB]{Colors.RESET} {msg}")
 
+def log_busca_archive_org(msg: str):
+    _append_log("BUSCA ARCHIVE.ORG", msg, "info")
+    _safe_print(f"{Colors.BRIGHT_MAGENTA}🏛️ [BUSCA ARCHIVE.ORG]{Colors.RESET} {msg}")
+
 def log_wal(msg: str):
     _append_log("LOG WAL", msg, "info")
     _safe_print(f"{Colors.BRIGHT_WHITE}[LOG WAL]{Colors.RESET} {msg}")

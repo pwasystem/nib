@@ -218,15 +218,47 @@ def recuperar_contexto_e_reforcar(pergunta: str) -> str:
                 edge["ultimo_acesso"] = agora
                 contexto_linhas.append(f"Associação: {no} {edge['relacao']} {vizinho}")
 
-    # 3. Fallback Acadêmico (se não houver memórias suficientes)
+def buscar_archive_org(query: str) -> list:
+    """Busca documentos e páginas arquivadas no Archive.org."""
+    resultados = []
+    logger.log_busca(f"Pesquisando no Archive.org: '{query}'...")
+    try:
+        url_archive = f"https://archive.org/advancedsearch.php?q={urllib.parse.quote(query)}&fl[]=title,description,identifier,publicdate,mediatype&sort[]=&rows=3&page=1&output=json"
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+        resp = requests.get(url_archive, headers=headers, timeout=5).json()
+        docs = resp.get("response", {}).get("docs", [])
+        for doc in docs:
+            titulo = doc.get("title", "")
+            if isinstance(titulo, list):
+                titulo = " ".join(titulo)
+            desc = doc.get("description", "")
+            if isinstance(desc, list):
+                desc = " ".join(desc)
+            if desc:
+                desc = BeautifulSoup(desc, "html.parser").get_text().strip()
+            ident = doc.get("identifier", "")
+            if titulo:
+                snippet = f"[Archive.org] Título: {titulo}"
+                if desc:
+                    snippet += f" | Descrição: {desc[:200]}..."
+                if ident:
+                    snippet += f" | ID: {ident}"
+                resultados.append(snippet)
+    except Exception:
+        pass
+    return resultados
+
+    # 3. Fallback Acadêmico / Archive.org (se não houver memórias suficientes)
     if not contexto_linhas:
-        logger.log_human("Nenhuma memória prévia encontrada localmente. Pesquisando em fontes acadêmicas...")
+        logger.log_human("Nenhuma memória prévia encontrada localmente. Pesquisando em fontes acadêmicas e repositórios...")
         artigos = buscar_diretorio_academico(pergunta)
+        if not artigos:
+            artigos = buscar_archive_org(pergunta)
         if artigos:
             conteudo = "\n".join(artigos)
-            id_novo = f"acad_mem_{int(agora)}"
-            registrar_experiencia(f"Conhecimento acadêmico sobre '{pergunta}': {conteudo}", id_novo)
-            contexto_linhas.append(f"[Conhecimento Acadêmico Adquirido]: {conteudo}")
+            id_novo = f"ext_mem_{int(agora)}"
+            registrar_experiencia(f"Conhecimento pesquisado sobre '{pergunta}': {conteudo}", id_novo)
+            contexto_linhas.append(f"[Conhecimento Externo Adquirido]: {conteudo}")
 
     return "\n".join(contexto_linhas)
 
